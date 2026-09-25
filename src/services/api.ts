@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 
-// Dev-safe default; overridden at build time via VITE_API_BASE_URL per environment.
+// In containers this builds as the MIRENAI_API_BASE_URL placeholder that env.sh
+// rewrites at startup; locally it falls back to the dev API origin.
 const envBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 // mirenai paths are used exactly (e.g. /policies) — no /api prefix.
 const baseURL = envBase.replace(/\/+$/, "");

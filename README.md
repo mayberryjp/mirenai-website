@@ -13,16 +13,18 @@ via the mirenai HTTP API.
 
 ## Environment
 
-Container env vars live in `docker-compose.yml` — no separate `.env` files. Values are Vite
-build-time variables, baked into the bundle at `npm run build`.
+The mirenai API origin is set at **runtime**, not baked at build. The image bakes a
+`MIRENAI_API_BASE_URL` placeholder into the bundle; at container start `env.sh` (run from
+nginx's `/docker-entrypoint.d/`) rewrites it from the container's `MIRENAI_API_BASE_URL`
+environment variable — so one image works across environments with no rebuild.
 
-| Variable | Default | Purpose |
+| Variable | Where | Purpose |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `http://localhost:8000` | mirenai API origin. The client calls it directly — mirenai has open CORS. Overridden at build time per environment. |
-| `VITE_APP_NAME` | `mirenai` | Display name. |
+| `MIRENAI_API_BASE_URL` | container runtime (`docker-compose.yml`) | mirenai API origin the browser calls directly (open CORS). |
+| `VITE_API_BASE_URL` | local dev only | Override for `npm run dev`; defaults to `http://localhost:8000`. |
 
-The API client calls `${VITE_API_BASE_URL}/policies`, `/upstreams`, etc. — mirenai paths are
-used exactly as documented, with no `/api` prefix.
+The API client calls `${MIRENAI_API_BASE_URL}/policies`, `/upstreams`, etc. — mirenai paths
+are used exactly as documented, with no `/api` prefix.
 
 ## Commands
 

@@ -4,8 +4,6 @@ services:
     ports:
       - "3030:8080"
     environment:
-      # VITE_* are build-time — baked into the static bundle at `npm run build`,
-      # so set them during the image build, not here (runtime env has no effect).
-      # The browser calls VITE_API_BASE_URL directly; mirenai has open CORS (no /api prefix).
-      - VITE_API_BASE_URL=
-      - VITE_APP_NAME=mirenai
+      # Rewritten into the built assets at container start by env.sh (runtime, not build-time).
+      # The browser calls this origin directly; mirenai has open CORS.
+      - MIRENAI_API_BASE_URL=http://localhost:8000

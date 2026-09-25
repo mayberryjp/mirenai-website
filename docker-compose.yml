@@ -1,8 +1,8 @@
 services:
   frontend:
-    image: mirenai-frontend:dev
+    image: mirenai-website:dev
     ports:
-      - "3030:80"
+      - "3030:8080"
     environment:
       # VITE_* are build-time — baked into the static bundle at `npm run build`,
       # so set them during the image build, not here (runtime env has no effect).

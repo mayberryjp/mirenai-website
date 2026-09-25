@@ -13,11 +13,12 @@ via the mirenai HTTP API.
 
 ## Environment
 
-Dev defaults are auto-loaded from `.env.development`. Values are Vite build-time variables.
+Container env vars live in `docker-compose.yml` — no separate `.env` files. Values are Vite
+build-time variables, baked into the bundle at `npm run build`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `http://localhost:8000` (dev) | mirenai API origin. The client calls it directly — mirenai has open CORS. Set it per environment at build time. |
+| `VITE_API_BASE_URL` | `http://localhost:8000` | mirenai API origin. The client calls it directly — mirenai has open CORS. Overridden at build time per environment. |
 | `VITE_APP_NAME` | `mirenai` | Display name. |
 
 The API client calls `${VITE_API_BASE_URL}/policies`, `/upstreams`, etc. — mirenai paths are
@@ -34,7 +35,7 @@ used exactly as documented, with no `/api` prefix.
 | Unit tests | `npm run test:unit` |
 | E2E tests | `npm run test:e2e` |
 | Build | `npm run build` |
-| Docker build | `docker build -t mirenai-frontend:dev .` |
+| Docker build | `docker build -t mirenai-website:dev .` |
 | Docker run | `docker compose up` |
 
 ## Project layout

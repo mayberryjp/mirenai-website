@@ -1,0 +1,5 @@
+services:
+  frontend:
+    image: mirenai-frontend:dev
+    ports:
+      - "3030:80"

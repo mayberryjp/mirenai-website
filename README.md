@@ -13,16 +13,15 @@ via the mirenai HTTP API.
 
 ## Environment
 
-Copy `.env.example` to `.env` and adjust as needed. Defaults:
+Dev defaults are auto-loaded from `.env.development`. Values are Vite build-time variables.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | *(empty)* | API origin. **Leave empty** to route through the `/api` reverse proxy (Vite in dev, nginx in prod). Set an absolute origin only to bypass the proxy. |
+| `VITE_API_BASE_URL` | `http://localhost:8000` (dev) | mirenai API origin. The client calls it directly — mirenai has open CORS. Set it per environment at build time. |
 | `VITE_APP_NAME` | `mirenai` | Display name. |
-| `VITE_APP_ENV` | `development` | Environment label. |
 
-The API client calls `${VITE_API_BASE_URL}/api/...`; the dev proxy and nginx both strip the
-`/api` prefix before forwarding to mirenai (whose paths are exact, e.g. `/policies`).
+The API client calls `${VITE_API_BASE_URL}/policies`, `/upstreams`, etc. — mirenai paths are
+used exactly as documented, with no `/api` prefix.
 
 ## Commands
 

@@ -1,7 +1,8 @@
 import axios, { AxiosError } from "axios";
 
 const envBase = import.meta.env.VITE_API_BASE_URL || "";
-const baseURL = `${envBase.replace(/\/+$/, "")}/api`;
+// mirenai paths are used exactly (e.g. /policies) — no /api prefix.
+const baseURL = envBase.replace(/\/+$/, "");
 
 const api = axios.create({
   baseURL,

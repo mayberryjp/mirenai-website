@@ -1,11 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
-import publicRoutes from "@/router/routes/publicRoutes";
 import privateRoutes from "@/router/routes/privateRoutes";
 import errorRoutes from "@/router/routes/errorRoutes";
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: [...publicRoutes, ...privateRoutes, ...errorRoutes]
+  routes: [...privateRoutes, ...errorRoutes]
 });
 
 router.onError((err) => {

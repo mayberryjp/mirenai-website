@@ -89,6 +89,24 @@ export interface QueryLog {
   last_seen: string;
 }
 
+// ---- Clients ----
+// The client roster is derived from the query log (one entry per distinct
+// QueryLog.client) — see services/clients.ts.
+export interface ClientSummary {
+  client: string; // IP address
+  total_queries: number; // sum of QueryLog.count
+  domain_count: number; // distinct domains seen
+  last_seen: string | null; // most recent last_seen across the client's rows
+}
+
+// Per-client hourly query history for the detail chart. Served by the future
+// GET /clients/{client}/history endpoint (see services/stats.ts).
+export interface ClientHourlyStat {
+  hour: string; // ISO hour bucket, container-local wall-clock (no offset)
+  queries: number; // total queries in the hour
+  blocked: number; // subset that were denied/blocklisted
+}
+
 // ---- Settings ----
 export interface Settings {
   cache_enabled: boolean;
@@ -120,6 +138,12 @@ export type QueryList = OkEnvelope & { queries: QueryLog[]; total: number };
 export type SettingsResponse = OkEnvelope & { settings: Settings };
 
 export type HealthResponse = OkEnvelope & { service: string };
+
+// Future endpoint: GET /clients/{client}/history?hours=100 (see services/stats.ts).
+export type ClientHistoryResponse = OkEnvelope & {
+  client: string;
+  history: ClientHourlyStat[];
+};
 
 // A paginated slice returned by list services.
 export interface Page<T> {

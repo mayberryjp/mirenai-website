@@ -1,0 +1,68 @@
+/* =============================================================================
+   Shared styling for the project's Vuetify v-data-table tables.
+
+   Add class="app-table" to any <v-data-table> to get the app's standard table
+   look: dark theme, horizontal scroll on wide tables, and a mobile card layout
+   (< md) where each row becomes a distinct card so rows are easy to tell apart.
+
+     <v-data-table class="app-table" mobile-breakpoint="md" ...>
+
+   This file is the home for any GENERIC table styling reused across the app
+   (theme, responsiveness, etc.) — add to it rather than re-solving per component.
+   Keep table styling that is specific to one component scoped in that component.
+
+   Expanded rows: if the table uses `show-expand` with a custom `expanded-row`
+   slot, add class="expanded-row" to that slot's <tr> so the card above it drops
+   its bottom gap and the two read as one unit. Keep the <tr>/<td> as normal
+   table elements (do NOT set display:block — that breaks row height in a real
+   <table> and overlaps the next card).
+   ============================================================================ */
+
+/* --- Dark table theme ----------------------------------------------------- */
+.app-table.v-data-table {
+  background-color: transparent !important;
+}
+
+.app-table .v-table,
+.app-table .v-table .v-table__wrapper,
+.app-table .v-data-table-header {
+  background-color: #0d1117 !important;
+}
+
+/* Scroll the wide table horizontally instead of overflowing the page */
+.app-table .v-table__wrapper {
+  overflow-x: auto;
+}
+
+/* --- Mobile card mode (< md) ---------------------------------------------- */
+@media (max-width: 959px) {
+  .app-table .v-data-table__tr--mobile {
+    display: block;
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    margin: 12px 8px;
+    padding: 4px 8px;
+  }
+
+  .app-table .v-data-table__tr--mobile > td {
+    padding-block: 6px;
+  }
+
+  /* Divider between fields within a card */
+  .app-table .v-data-table__tr--mobile > td:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  /* Custom expanded-row: keep it a normal table cell, just pad it */
+  .app-table .expanded-row > td {
+    padding: 0 8px 12px !important;
+    background-color: #0d1117;
+  }
+
+  /* A small gap between a card and its open expanded row (less than the gap
+     between separate cards, so they still read as related) */
+  .app-table .v-data-table__tr--mobile:has(+ .expanded-row) {
+    margin-bottom: 6px;
+  }
+}

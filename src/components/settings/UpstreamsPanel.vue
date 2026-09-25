@@ -108,9 +108,6 @@ onMounted(() => {
 <template>
   <div>
     <div class="d-flex align-center mb-4">
-      <h1 class="text-h5">
-        Upstreams
-      </h1>
       <v-spacer />
       <v-btn
         color="primary"
@@ -127,11 +124,13 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No upstream resolvers."
     >
-      <v-card variant="tonal">
+      <v-card color="surface-card">
         <v-data-table
           :headers="headers"
           :items="items"
           density="comfortable"
+          class="app-table"
+          mobile-breakpoint="md"
         >
           <template #item.name="{ item }">
             {{ item.name ?? "—" }}

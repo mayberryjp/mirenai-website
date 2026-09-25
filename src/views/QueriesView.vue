@@ -59,11 +59,13 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No queries logged yet."
     >
-      <v-card variant="tonal">
+      <v-card color="surface-card">
         <v-data-table
           :headers="headers"
           :items="items"
           density="comfortable"
+          class="app-table"
+          mobile-breakpoint="md"
           :items-per-page="store.pageSize"
           hide-default-footer
         >

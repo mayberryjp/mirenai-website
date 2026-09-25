@@ -1,3 +1,42 @@
+/* Design system ported from the reference apps (sando / mite). */
+:root {
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0a0c10;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Palette */
+  --bg-primary: #0a0c10;
+  --bg-secondary: #0d1117;
+  --bg-card: #0d1117;
+  --bg-elevated: #161b22;
+  --bg-hover: #1c232c;
+  --border: #21262d;
+  --border-light: #30363d;
+  --text-primary: #f0f3f7;
+  --text-secondary: #b1b8c0;
+  --text-muted: #8b949e;
+
+  --accent: #3b82f6;
+  --success: #22c55e;
+  --success-accent: #5cdd8b;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --rose: #f63c61;
+
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Shared system font stack (matches the reference apps). */
+  --app-font-family: BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 html,
 body,
 #app {
@@ -5,6 +44,55 @@ body,
   margin: 0;
 }
 
+body {
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #0a0c10;
+}
+
 #app {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  width: 100%;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--app-font-family);
+}
+
+/* Apply the shared font stack across all Vuetify components. */
+.v-application {
+  font-family: var(--app-font-family) !important;
+}
+
+/* Subtle custom scrollbar (matches the reference sidebar/list styling). */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+/* Page/section titles (reference style.css). */
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 14px;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
 }

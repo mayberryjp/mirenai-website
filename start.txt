@@ -1,3 +1,63 @@
 set VITE_API_BASE_URL=http://10.4.10.3:11000
 
 npm run dev
+
+
+3. Client requests — /requests (read-only)
+Per-client request objects (query names) with hit counts, one row per (client, domain, qtype). Written hourly. Ordered by hits desc, then id — so the top ("principal") objects come first.
+
+Route	Purpose
+GET /requests	List (paginated) → key requests
+Query filter (optional): client=<ip> — only that client's objects.
+
+Object:
+
+
+Examples: GET /requests?limit=100 (global top 100) · GET /requests?client=10.0.0.5&limit=10 (that client's top 10).
+
+
+1. Hosts — /hosts
+Client devices, one row per source IP (auto-recorded). Only device_name is editable. Ordered by last_seen desc, then id.
+
+Route	Purpose
+GET /hosts	List (paginated) → key hosts
+GET /hosts/{id}	One → key host, or 404
+PUT /hosts/{id}	Set/clear device name → key host, or 404
+DELETE /hosts/{id}	Remove → { "deleted": <id> }, or 404
+Object:
+
+{ "id": 1, "ip": "10.0.0.5", "device_name": "living-room-tv",
+  "query_count": 4213, "first_seen": "2026-09-20T09:15:00", "last_seen": "2026-09-25T20:41:00" }
+
+
+PUT body (only field accepted):
+
+
+device_name: string ≤ 255 chars, or null. Whitespace trimmed; "" or n
+
+
+3. Client requests — /requests (read-only)
+Per-client request objects (query names) with hit counts, one row per (client, domain, qtype). Written hourly. Ordered by hits desc, then id — so the top ("principal") objects come first.
+
+Route	Purpose
+GET /requests	List (paginated) → key requests
+Query filter (optional): client=<ip> — only that client's objects.
+
+Object:
+{ "id": 7, "client": "10.0.0.5", "domain": "ads.example.com", "qtype": "A",
+  "hits": 842, "first_seen": "2026-09-21T11:00:00", "last_seen": "2026-09-25T20:00:00" }
+
+Examples: GET /requests?limit=100 (global top 100) · GET /requests?client=10.0.0.5&limit=10 (that client's top 10).
+
+2. Client hourly stats — /stats (read-only)
+Per-client query counts per wall-clock hour, broken down by result. Written hourly; auto-purged after 500 hours. Ordered by hour_start desc, then client.
+
+Route	Purpose
+GET /stats	List (paginated) → key stats
+Query filters (optional, combine with each other and limit/offset):
+
+client=<ip> — one client only.
+hours=<n> — only buckets from the last N hours (hour_start >= now − n hours). This is the precise "top N hours" (e.g. ?hours=100, ?hours=500) — use it instead of limit, which caps rows (per hour+client), not distinct hours. Non-integer → 422 (detail:"hours must be an integer").
+Object:{ "id": 42, "hour_start": "2026-09-25T20:00:00", "client": "10.0.0.5",
+  "total": 128, "forwarded": 90, "cached": 25, "overridden": 3,
+  "denied": 6, "blocked": 4, "servfail": 0 }

@@ -2,21 +2,22 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useClientsStore } from "@/stores/clients";
-import { getClientHistory } from "@/services/stats";
+import { getClientStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
-import ClientQueriesChart from "@/components/client-details/ClientQueriesChart.vue";
-import type { ClientHourlyStat, QueryLog } from "@/types/domain";
+import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
+import ClientModeControl from "@/components/client-details/ClientModeControl.vue";
+import HostNameEditor from "@/components/client-details/HostNameEditor.vue";
+import type { ClientStat, QueryLog } from "@/types/domain";
 
 const route = useRoute();
 const store = useClientsStore();
 
 const client = computed(() => route.params.client as string);
 
-const history = ref<ClientHourlyStat[]>([]);
-const historyLoading = ref(true);
-const historyError = ref<string | null>(null);
+const stats = ref<ClientStat[]>([]);
+const statsLoading = ref(true);
+const statsError = ref<string | null>(null);
 
-const summary = computed(() => store.summaryFor(client.value));
 const domainRows = computed<QueryLog[]>(() =>
   [...store.rowsFor(client.value)].sort((a, b) => b.count - a.count)
 );
@@ -29,27 +30,27 @@ const headers = [
   { title: "Last seen", key: "last_seen" }
 ];
 
-async function loadHistory(): Promise<void> {
-  historyLoading.value = true;
-  historyError.value = null;
+async function loadStats(): Promise<void> {
+  statsLoading.value = true;
+  statsError.value = null;
   try {
-    history.value = await getClientHistory(client.value, 100);
+    stats.value = await getClientStats(client.value, 100);
   } catch (e) {
-    historyError.value = apiErrorMessage(e);
-    history.value = [];
+    statsError.value = apiErrorMessage(e);
+    stats.value = [];
   } finally {
-    historyLoading.value = false;
+    statsLoading.value = false;
   }
 }
 
 onMounted(() => {
   if (!store.loaded) void store.load();
-  void loadHistory();
+  void loadStats();
 });
 
 // Re-fetch when navigating between clients without leaving the route.
 watch(client, () => {
-  void loadHistory();
+  void loadStats();
 });
 </script>
 
@@ -60,33 +61,41 @@ watch(client, () => {
       color="surface-card"
       class="mb-4"
     >
-      <v-card-text class="d-flex align-center flex-wrap ga-4">
-        <v-icon
-          icon="mdi-monitor"
-          size="48"
-          color="primary"
-        />
-        <div>
-          <div class="text-h5 font-weight-bold">
-            {{ client }}
+      <v-card-text>
+        <div class="d-flex flex-column flex-sm-row align-start align-sm-center">
+          <!-- Device icon -->
+          <div class="device-icon-container me-sm-4 mb-3 mb-sm-0">
+            <v-icon
+              icon="mdi-monitor"
+              size="96"
+              color="primary"
+              class="icon-with-background"
+            />
           </div>
-          <div class="text-medium-emphasis text-body-2">
-            {{ summary ? summary.total_queries.toLocaleString() : "—" }} queries ·
-            {{ summary ? summary.domain_count.toLocaleString() : "—" }} domains
-            <template v-if="summary?.last_seen">
-              · last seen {{ summary.last_seen }}
-            </template>
+
+          <!-- Client info -->
+          <div class="client-title">
+            <HostNameEditor :client="client" />
+            <div class="text-subtitle-1 text-green">
+              IP Address: {{ client }}
+            </div>
           </div>
         </div>
       </v-card-text>
     </v-card>
 
-    <!-- Last 100 hours of DNS queries -->
+    <!-- Response policy (mode) for this client -->
     <div class="mb-4">
-      <ClientQueriesChart
-        :history="history"
-        :loading="historyLoading"
-        :error="historyError"
+      <ClientModeControl :client="client" />
+    </div>
+
+    <!-- Last 100 hours of DNS queries (same layout as the dashboard chart) -->
+    <div class="mb-4">
+      <SiteTrafficChart
+        title="DNS Traffic"
+        :stats="stats"
+        :loading="statsLoading"
+        :error="statsError"
       />
     </div>
 
@@ -115,6 +124,30 @@ watch(client, () => {
 <style scoped>
 .client-details {
   animation: fadeIn 0.3s ease-in-out;
+}
+
+.text-subtitle-1 {
+  color: rgb(92, 221, 139) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  margin-top: 3px;
+  word-break: break-word;
+}
+
+.device-icon-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 120px;
+  position: relative;
+}
+
+.client-title {
+  flex: 1;
+}
+
+.icon-with-background {
+  opacity: 0.9;
 }
 
 @keyframes fadeIn {

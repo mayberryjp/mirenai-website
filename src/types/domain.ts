@@ -70,7 +70,6 @@ export interface Blocklist {
 }
 
 export interface BlocklistCreate {
-  name: string;
   url: string;
   update_interval_hours?: number; // default 24, >= 1
   enabled?: boolean; // default true
@@ -99,25 +98,51 @@ export interface ClientSummary {
   last_seen: string | null; // most recent last_seen across the client's rows
 }
 
-// Per-client hourly query history for the detail chart. Served by the future
-// GET /clients/{client}/history endpoint (see services/stats.ts).
-export interface ClientHourlyStat {
-  hour: string; // ISO hour bucket, container-local wall-clock (no offset)
-  queries: number; // total queries in the hour
-  blocked: number; // subset that were denied/blocklisted
+// Client response mode — GET/PUT /clients/{ip}/mode (flat, non-enveloped response).
+// GET may report "override" (advanced per-domain rule); PUT only accepts the settable modes.
+export type ClientMode = "forward" | "deny" | "blocklist" | "default" | "override";
+export type SettableClientMode = Exclude<ClientMode, "override">;
+
+export interface ClientModeState {
+  status: "ok";
+  client: string;
+  mode: ClientMode;
+  policy_id: number | null;
 }
 
-// Site-wide hourly totals across all clients. Served by GET /stats/site.
-export interface SiteHourlyStat {
+// ---- Hosts ----
+// Server-recorded device rows, one per client IP. Only device_name is writable.
+export interface Host {
+  id: number;
+  ip: string;
+  device_name: string | null;
+  query_count: number; // read-only
+  first_seen: string; // read-only
+  last_seen: string; // read-only
+}
+
+// Per-hour result breakdown shared by the site and per-client traffic charts.
+export interface HourlyResultStat {
   hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
-  total: number;
   forwarded: number;
   cached: number;
   overridden: number;
   denied: number;
   blocked: number;
   servfail: number;
+}
+
+// Site-wide hourly totals across all clients. Served by GET /stats/site.
+export interface SiteHourlyStat extends HourlyResultStat {
+  total: number;
   clients: number;
+}
+
+// Per-client hourly stats. Served by GET /stats?client=<ip>&hours=<n>.
+export interface ClientStat extends HourlyResultStat {
+  id: number;
+  client: string;
+  total: number;
 }
 
 // ---- Settings ----
@@ -144,6 +169,9 @@ export type UpstreamList = OkEnvelope & { upstreams: Upstream[]; total: number }
 export type BlocklistResponse = OkEnvelope & { blocklist: Blocklist };
 export type BlocklistList = OkEnvelope & { blocklists: Blocklist[]; total: number };
 
+export type HostResponse = OkEnvelope & { host: Host };
+export type HostList = OkEnvelope & { hosts: Host[]; total: number };
+
 export type DomainList = OkEnvelope & { domains: string[]; total: number };
 
 export type QueryList = OkEnvelope & { queries: QueryLog[]; total: number };
@@ -152,10 +180,10 @@ export type SettingsResponse = OkEnvelope & { settings: Settings };
 
 export type HealthResponse = OkEnvelope & { service: string };
 
-// Future endpoint: GET /clients/{client}/history?hours=100 (see services/stats.ts).
-export type ClientHistoryResponse = OkEnvelope & {
-  client: string;
-  history: ClientHourlyStat[];
+// GET /stats?client=<ip>&hours=<n> — per-client hourly stats.
+export type ClientStatsResponse = OkEnvelope & {
+  stats: ClientStat[];
+  total: number;
 };
 
 // GET /stats/site — site-wide hourly totals (newest hour first, paginated).

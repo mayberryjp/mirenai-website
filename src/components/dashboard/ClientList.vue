@@ -143,7 +143,7 @@ onMounted(() => {
 
                 <!-- Client info with consistent left margin -->
                 <div class="host-info">
-                  {{ c.client }}
+                  {{ store.nameFor(c.client) }}
                 </div>
 
                 <!-- Query count (right-aligned, like the reference threat score) -->

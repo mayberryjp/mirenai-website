@@ -1,34 +1,42 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
-import { usePoliciesStore } from "@/stores/policies";
-import { useUpstreamsStore } from "@/stores/upstreams";
-import { useBlocklistsStore } from "@/stores/blocklists";
 import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
 import type { SiteHourlyStat } from "@/types/domain";
 
 const clients = useClientsStore();
-const policies = usePoliciesStore();
-const upstreams = useUpstreamsStore();
-const blocklists = useBlocklistsStore();
+
+const siteStats = ref<SiteHourlyStat[]>([]);
+const siteLoading = ref(true);
+const siteError = ref<string | null>(null);
+
+// Aggregate the already-loaded 100-hour site stats (no extra API calls).
+const siteTotals = computed(() =>
+  siteStats.value.reduce(
+    (acc, s) => {
+      acc.total += s.total;
+      acc.cached += s.cached;
+      acc.blocked += s.blocked;
+      acc.denied += s.denied;
+      return acc;
+    },
+    { total: 0, cached: 0, blocked: 0, denied: 0 }
+  )
+);
 
 const stats = computed(() => [
   { label: "Clients", description: "Seen", value: clients.total, color: "text-blue" },
-  { label: "Queries", description: "Logged", value: clients.totalQueries, color: "text-green" },
-  { label: "Policies", description: "Total", value: policies.total, color: "text-blue" },
-  { label: "Upstreams", description: "Total", value: upstreams.total, color: "text-blue" },
-  { label: "Blocklists", description: "Total", value: blocklists.total, color: "text-green" }
+  { label: "Queries", description: "Last 100h", value: siteTotals.value.total, color: "text-green" },
+  { label: "Cached", description: "Last 100h", value: siteTotals.value.cached, color: "text-blue" },
+  { label: "Blocked", description: "Last 100h", value: siteTotals.value.blocked, color: "text-green" },
+  { label: "Denied", description: "Last 100h", value: siteTotals.value.denied, color: "text-blue" }
 ]);
 
 function fmt(n: number): string {
   return n.toLocaleString();
 }
-
-const siteStats = ref<SiteHourlyStat[]>([]);
-const siteLoading = ref(true);
-const siteError = ref<string | null>(null);
 
 async function loadSiteStats(): Promise<void> {
   siteLoading.value = true;
@@ -45,9 +53,6 @@ async function loadSiteStats(): Promise<void> {
 
 onMounted(() => {
   if (!clients.loaded) void clients.load();
-  void policies.load();
-  void upstreams.load();
-  void blocklists.load();
   void loadSiteStats();
 });
 </script>

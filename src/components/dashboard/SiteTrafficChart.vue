@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { SiteHourlyStat } from "@/types/domain";
+import type { HourlyResultStat } from "@/types/domain";
 
-const props = defineProps<{
-  stats: SiteHourlyStat[];
-  loading: boolean;
-  error: string | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    stats: HourlyResultStat[];
+    loading: boolean;
+    error: string | null;
+    title?: string;
+  }>(),
+  { title: "Site DNS Traffic" }
+);
 
 // Oldest → newest, capped at the last 100 hourly buckets.
 const recent = computed(() =>
@@ -17,8 +21,12 @@ const hasData = computed(() => recent.value.length > 0);
 const categories = computed(() => recent.value.map((s) => formatHour(s.hour_start)));
 
 const series = computed(() => [
-  { name: "Queries", type: "area", data: recent.value.map((s) => s.total) },
-  { name: "Blocked", type: "line", data: recent.value.map((s) => s.blocked) }
+  { name: "Forwarded", type: "line", data: recent.value.map((s) => s.forwarded) },
+  { name: "Cached", type: "line", data: recent.value.map((s) => s.cached) },
+  { name: "Overridden", type: "line", data: recent.value.map((s) => s.overridden) },
+  { name: "Denied", type: "line", data: recent.value.map((s) => s.denied) },
+  { name: "Blocked", type: "line", data: recent.value.map((s) => s.blocked) },
+  { name: "Servfail", type: "line", data: recent.value.map((s) => s.servfail) }
 ]);
 
 const chartOptions = computed(() => ({
@@ -29,17 +37,14 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
-  colors: ["#4a90d9", "#ff5a36"],
-  fill: { opacity: [0.25, 1] },
-  stroke: { curve: "smooth", width: [2, 2] },
+  colors: ["#2ec4a0", "#7b61ff", "#ffc93c", "#f5822a", "#ff5a36", "#9aa4b2"],
+  fill: { opacity: 1 },
+  stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
     shared: true,
-    y: [
-      { formatter: (val: number) => `${Math.round(val).toLocaleString()} queries` },
-      { formatter: (val: number) => `${Math.round(val).toLocaleString()} blocked` }
-    ]
+    y: { formatter: (val: number) => Math.round(val).toLocaleString() }
   },
   grid: {
     borderColor: "#333",
@@ -90,7 +95,7 @@ function formatHour(iso: string): string {
     class="site-traffic-card"
   >
     <v-card-title class="d-flex align-center px-4 py-3">
-      <span class="text-h6 text-sm-h5 site-traffic-title">Site DNS Traffic</span>
+      <span class="text-h6 text-sm-h5 site-traffic-title">{{ title }}</span>
       <v-spacer />
       <span class="text-caption text-grey">Last 100 hours</span>
     </v-card-title>

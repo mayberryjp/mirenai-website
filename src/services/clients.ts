@@ -1,5 +1,11 @@
+import api from "@/services/api";
 import { listQueries } from "@/services/queries";
-import type { ClientSummary, QueryLog } from "@/types/domain";
+import type {
+  ClientModeState,
+  ClientSummary,
+  QueryLog,
+  SettableClientMode
+} from "@/types/domain";
 
 // mirenai has no dedicated clients endpoint, so the roster is derived from the
 // query log: pull a large slice in one call and aggregate by client.
@@ -40,4 +46,22 @@ export function aggregateClients(rows: QueryLog[]): ClientSummary[] {
       last_seen: e.last
     }))
     .sort((a, b) => b.total_queries - a.total_queries);
+}
+
+// Client response mode — GET/PUT /clients/{ip}/mode return a flat object.
+export async function getClientMode(ip: string): Promise<ClientModeState> {
+  const res = await api.get<ClientModeState>(`/clients/${encodeURIComponent(ip)}/mode`);
+  return res.data;
+}
+
+// Idempotent (always 200); backend rejects "override" via the SettableClientMode type.
+export async function setClientMode(
+  ip: string,
+  mode: SettableClientMode
+): Promise<ClientModeState> {
+  const res = await api.put<ClientModeState>(
+    `/clients/${encodeURIComponent(ip)}/mode`,
+    { mode }
+  );
+  return res.data;
 }

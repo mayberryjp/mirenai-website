@@ -13,7 +13,6 @@ const protocols: UpstreamProtocol[] = ["udp", "tcp"];
 
 const headers = [
   { title: "Priority", key: "priority" },
-  { title: "Name", key: "name" },
   { title: "Address", key: "address" },
   { title: "Port", key: "port" },
   { title: "Protocol", key: "protocol" },
@@ -22,7 +21,6 @@ const headers = [
 ];
 
 interface UpstreamForm {
-  name: string;
   address: string;
   port: number;
   protocol: UpstreamProtocol;
@@ -31,7 +29,7 @@ interface UpstreamForm {
 }
 
 function emptyForm(): UpstreamForm {
-  return { name: "", address: "", port: 53, protocol: "udp", enabled: true, priority: 100 };
+  return { address: "", port: 53, protocol: "udp", enabled: true, priority: 100 };
 }
 
 const dialog = ref(false);
@@ -50,7 +48,6 @@ function openCreate(): void {
 function openEdit(row: Upstream): void {
   editingId.value = row.id;
   Object.assign(form, {
-    name: row.name ?? "",
     address: row.address,
     port: row.port,
     protocol: row.protocol,
@@ -66,7 +63,6 @@ async function submit(): Promise<void> {
   formError.value = null;
   const body: UpstreamCreate = {
     address: form.address.trim(),
-    name: form.name.trim() || null,
     port: form.port,
     protocol: form.protocol,
     enabled: form.enabled,
@@ -132,9 +128,6 @@ onMounted(() => {
           class="app-table"
           mobile-breakpoint="md"
         >
-          <template #item.name="{ item }">
-            {{ item.name ?? "—" }}
-          </template>
           <template #item.enabled="{ item }">
             <v-chip
               :color="item.enabled ? 'success' : 'error'"
@@ -178,10 +171,6 @@ onMounted(() => {
           >
             {{ formError }}
           </v-alert>
-          <v-text-field
-            v-model="form.name"
-            label="Name (optional)"
-          />
           <v-text-field
             v-model="form.address"
             label="Address (IP)"

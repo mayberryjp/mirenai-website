@@ -21,14 +21,18 @@ export default createVuetify({
           "surface-card": "#0d1117",
           "background-100": "#161b22",
           "background-200": "#1c232c",
-          primary: "#3b82f6",
-          secondary: "#9E394F",
-          success: "#22c55e",
-          warning: "#eab308",
-          error: "#ef4444",
-          info: "#58a6ff",
-          rose: "#f63c61",
-          burgundy: "#a0364d"
+          primary: "#4a90d9",
+          secondary: "#7b61ff",
+          success: "#2ec4a0",
+          warning: "#f5a623",
+          error: "#ff5a36",
+          info: "#5b8def",
+          rose: "#7b61ff",
+          burgundy: "#a0364d",
+          teal: "#2ec4a0",
+          amber: "#ffc93c",
+          orange: "#f5822a",
+          purple: "#7b61ff"
         }
       }
     }

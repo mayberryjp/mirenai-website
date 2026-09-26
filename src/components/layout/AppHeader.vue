@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 import { navItems, githubLink } from "@/constants/navigation";
@@ -8,6 +9,9 @@ const route = useRoute();
 // Collapse to a hamburger drawer below the lg breakpoint (1280px).
 const { lgAndUp } = useDisplay();
 const ui = useUiStore();
+
+// Fall back to an icon until the logo image (public/logo.png) is present.
+const logoError = ref(false);
 </script>
 
 <template>
@@ -20,16 +24,26 @@ const ui = useUiStore();
       :to="{ name: 'dashboard' }"
       class="product-branding d-flex align-center text-decoration-none ms-2 ms-lg-8"
     >
+      <img
+        v-if="!logoError"
+        src="/logo.png"
+        alt="Mirenai"
+        width="36"
+        height="36"
+        class="product-logo mr-3"
+        @error="logoError = true"
+      >
       <v-icon
+        v-else
         icon="mdi-dns"
         size="30"
         color="#2ec4a0"
         class="mr-3"
       />
       <span class="product-name text-subtitle-1 text-lg-h5">
-        mirenai
+        Mirenai ミレナイ
         <span class="product-bar tagline">|</span>
-        <span class="tagline-text tagline">Know Your DNS</span>
+        <span class="tagline-text tagline">Know Your Network</span>
       </span>
     </router-link>
 
@@ -123,6 +137,11 @@ const ui = useUiStore();
   height: 48px;
 }
 
+.product-logo {
+  border-radius: 8px;
+  display: block;
+}
+
 .mx-2 {
   text-transform: capitalize;
   color: #b1b8c0;
@@ -142,14 +161,14 @@ const ui = useUiStore();
 }
 
 .product-bar {
-  color: #2196f3;
+  color: #f5a623;
   font-weight: 700;
   margin-right: 8px;
   letter-spacing: 0.05em !important;
 }
 
 .tagline-text {
-  color: #64b5f6;
+  color: #5b8def;
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: 0.05em !important;

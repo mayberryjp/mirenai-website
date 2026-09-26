@@ -4,17 +4,15 @@ import { useClientsStore } from "@/stores/clients";
 import { usePoliciesStore } from "@/stores/policies";
 import { useUpstreamsStore } from "@/stores/upstreams";
 import { useBlocklistsStore } from "@/stores/blocklists";
-import { getHealth, getReady } from "@/services/health";
+import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
+import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
+import type { SiteHourlyStat } from "@/types/domain";
 
 const clients = useClientsStore();
 const policies = usePoliciesStore();
 const upstreams = useUpstreamsStore();
 const blocklists = useBlocklistsStore();
-
-const ready = ref<boolean | null>(null);
-const service = ref<string | null>(null);
-const healthError = ref<string | null>(null);
 
 const stats = computed(() => [
   { label: "Clients", description: "Seen", value: clients.total, color: "text-blue" },
@@ -28,14 +26,20 @@ function fmt(n: number): string {
   return n.toLocaleString();
 }
 
-async function loadHealth(): Promise<void> {
-  healthError.value = null;
+const siteStats = ref<SiteHourlyStat[]>([]);
+const siteLoading = ref(true);
+const siteError = ref<string | null>(null);
+
+async function loadSiteStats(): Promise<void> {
+  siteLoading.value = true;
+  siteError.value = null;
   try {
-    const [h, r] = await Promise.all([getHealth(), getReady()]);
-    service.value = h.service;
-    ready.value = r.ready;
+    siteStats.value = await getSiteStats(100);
   } catch (e) {
-    healthError.value = apiErrorMessage(e);
+    siteError.value = apiErrorMessage(e);
+    siteStats.value = [];
+  } finally {
+    siteLoading.value = false;
   }
 }
 
@@ -44,7 +48,7 @@ onMounted(() => {
   void policies.load();
   void upstreams.load();
   void blocklists.load();
-  void loadHealth();
+  void loadSiteStats();
 });
 </script>
 
@@ -81,56 +85,12 @@ onMounted(() => {
       </v-col>
     </v-row>
 
-    <!-- Select-a-client hint -->
-    <v-card
-      color="surface-card"
-      class="mb-4"
-    >
-      <v-card-text class="d-flex align-center ga-3">
-        <v-icon
-          icon="mdi-arrow-left-bold-outline"
-          color="primary"
-        />
-        <div>
-          <div class="text-subtitle-1 font-weight-medium">
-            Select a client
-          </div>
-          <div class="text-medium-emphasis text-body-2">
-            Choose a client from the list to view its DNS queries over the last 100 hours.
-          </div>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Server status -->
-    <v-card color="surface-card">
-      <v-card-title class="text-subtitle-1">
-        Server status
-      </v-card-title>
-      <v-divider />
-      <v-card-text>
-        <v-alert
-          v-if="healthError"
-          type="error"
-          variant="tonal"
-        >
-          {{ healthError }}
-        </v-alert>
-        <template v-else>
-          <div class="d-flex align-center mb-2">
-            <v-icon
-              :icon="ready ? 'mdi-check-circle' : 'mdi-alert-circle'"
-              :color="ready ? 'success' : 'warning'"
-              class="mr-2"
-            />
-            <span>{{ ready === null ? "Checking…" : ready ? "Database reachable" : "Not ready" }}</span>
-          </div>
-          <div class="text-medium-emphasis">
-            Service: {{ service ?? "—" }}
-          </div>
-        </template>
-      </v-card-text>
-    </v-card>
+    <!-- Site-wide DNS traffic (last 100 hours) -->
+    <SiteTrafficChart
+      :stats="siteStats"
+      :loading="siteLoading"
+      :error="siteError"
+    />
   </div>
 </template>
 
@@ -159,10 +119,10 @@ onMounted(() => {
 }
 
 .text-blue {
-  color: #3b82f6 !important;
+  color: #4a90d9 !important;
 }
 
 .text-green {
-  color: #5cdd8b !important;
+  color: #2ec4a0 !important;
 }
 </style>

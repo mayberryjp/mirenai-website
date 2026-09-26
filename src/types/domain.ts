@@ -107,6 +107,19 @@ export interface ClientHourlyStat {
   blocked: number; // subset that were denied/blocklisted
 }
 
+// Site-wide hourly totals across all clients. Served by GET /stats/site.
+export interface SiteHourlyStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  total: number;
+  forwarded: number;
+  cached: number;
+  overridden: number;
+  denied: number;
+  blocked: number;
+  servfail: number;
+  clients: number;
+}
+
 // ---- Settings ----
 export interface Settings {
   cache_enabled: boolean;
@@ -143,6 +156,12 @@ export type HealthResponse = OkEnvelope & { service: string };
 export type ClientHistoryResponse = OkEnvelope & {
   client: string;
   history: ClientHourlyStat[];
+};
+
+// GET /stats/site — site-wide hourly totals (newest hour first, paginated).
+export type SiteStatsResponse = OkEnvelope & {
+  stats: SiteHourlyStat[];
+  total: number;
 };
 
 // A paginated slice returned by list services.

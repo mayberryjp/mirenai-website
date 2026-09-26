@@ -1,29 +1,29 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ClientHourlyStat } from "@/types/domain";
+import type { SiteHourlyStat } from "@/types/domain";
 
 const props = defineProps<{
-  history: ClientHourlyStat[];
+  stats: SiteHourlyStat[];
   loading: boolean;
   error: string | null;
 }>();
 
 // Oldest → newest, capped at the last 100 hourly buckets.
 const recent = computed(() =>
-  [...props.history].sort((a, b) => a.hour.localeCompare(b.hour)).slice(-100)
+  [...props.stats].sort((a, b) => a.hour_start.localeCompare(b.hour_start)).slice(-100)
 );
 const hasData = computed(() => recent.value.length > 0);
 
-const categories = computed(() => recent.value.map((s) => formatHour(s.hour)));
+const categories = computed(() => recent.value.map((s) => formatHour(s.hour_start)));
 
 const series = computed(() => [
-  { name: "Queries", type: "area", data: recent.value.map((s) => s.queries) },
+  { name: "Queries", type: "area", data: recent.value.map((s) => s.total) },
   { name: "Blocked", type: "line", data: recent.value.map((s) => s.blocked) }
 ]);
 
 const chartOptions = computed(() => ({
   chart: {
-    id: "client-queries-chart",
+    id: "site-traffic-chart",
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
@@ -87,10 +87,10 @@ function formatHour(iso: string): string {
 <template>
   <v-card
     color="surface-card"
-    class="queries-chart-card"
+    class="site-traffic-card"
   >
     <v-card-title class="d-flex align-center px-4 py-3">
-      <span class="text-h6 text-sm-h5 queries-chart-title">DNS Queries</span>
+      <span class="text-h6 text-sm-h5 site-traffic-title">Site DNS Traffic</span>
       <v-spacer />
       <span class="text-caption text-grey">Last 100 hours</span>
     </v-card-title>
@@ -153,11 +153,11 @@ function formatHour(iso: string): string {
 </template>
 
 <style scoped>
-.queries-chart-card {
+.site-traffic-card {
   overflow: hidden;
 }
 
-.queries-chart-title {
+.site-traffic-title {
   font-family: var(--app-font-family);
   color: #ffffff;
 }

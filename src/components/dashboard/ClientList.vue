@@ -65,7 +65,7 @@ onMounted(() => {
         <span class="site-risk-label">CLIENTS: </span>
         <span
           class="site-risk-desc"
-          :style="{ color: '#5CDD8B' }"
+          :style="{ color: '#2EC4A0' }"
         >
           {{ store.total }}
         </span>
@@ -222,7 +222,7 @@ onMounted(() => {
   font-weight: bold;
   min-width: 56px;
   text-align: right;
-  color: #5cdd8b;
+  color: #2ec4a0;
   white-space: nowrap;
 }
 

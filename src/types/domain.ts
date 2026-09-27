@@ -154,6 +154,14 @@ export interface NewDomainStat {
   new_domains: number;
 }
 
+// A recently first-seen (client, domain) pair — qtypes (A/AAAA/…) collapsed into
+// one row via min(first_seen). Served by GET /stats/new-domains/recent.
+export interface RecentNewDomain {
+  client: string;
+  domain: string;
+  first_seen: string; // ISO, container-local wall-clock (no offset)
+}
+
 // ---- Settings ----
 export interface Settings {
   cache_enabled: boolean;
@@ -204,6 +212,12 @@ export type SiteStatsResponse = OkEnvelope & {
 // GET /stats/new-domains[?client=<ip>] — per-client hourly new-domain counts.
 export type NewDomainStatsResponse = OkEnvelope & {
   stats: NewDomainStat[];
+  total: number;
+};
+
+// GET /stats/new-domains/recent[?limit=<n>] — most recently first-seen (client, domain) pairs.
+export type RecentNewDomainsResponse = OkEnvelope & {
+  domains: RecentNewDomain[];
   total: number;
 };
 

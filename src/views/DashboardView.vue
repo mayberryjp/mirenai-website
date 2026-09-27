@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
-import { getSiteStats } from "@/services/stats";
+import { getRecentNewDomains, getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
-import type { SiteHourlyStat } from "@/types/domain";
+import RecentDomainsTable from "@/components/dashboard/RecentDomainsTable.vue";
+import type { RecentNewDomain, SiteHourlyStat } from "@/types/domain";
 
 const clients = useClientsStore();
 
 const siteStats = ref<SiteHourlyStat[]>([]);
 const siteLoading = ref(true);
 const siteError = ref<string | null>(null);
+
+const recentDomains = ref<RecentNewDomain[]>([]);
+const recentLoading = ref(true);
+const recentError = ref<string | null>(null);
 
 // Aggregate the already-loaded 100-hour site stats (no extra API calls).
 const siteTotals = computed(() =>
@@ -51,9 +56,23 @@ async function loadSiteStats(): Promise<void> {
   }
 }
 
+async function loadRecentDomains(): Promise<void> {
+  recentLoading.value = true;
+  recentError.value = null;
+  try {
+    recentDomains.value = await getRecentNewDomains(100);
+  } catch (e) {
+    recentError.value = apiErrorMessage(e);
+    recentDomains.value = [];
+  } finally {
+    recentLoading.value = false;
+  }
+}
+
 onMounted(() => {
   if (!clients.loaded) void clients.load();
   void loadSiteStats();
+  void loadRecentDomains();
 });
 </script>
 
@@ -95,6 +114,14 @@ onMounted(() => {
       :stats="siteStats"
       :loading="siteLoading"
       :error="siteError"
+    />
+
+    <!-- Recently first-seen client/domain pairs -->
+    <RecentDomainsTable
+      :rows="recentDomains"
+      :loading="recentLoading"
+      :error="recentError"
+      class="mt-4"
     />
   </div>
 </template>

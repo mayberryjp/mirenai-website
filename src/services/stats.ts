@@ -4,6 +4,8 @@ import type {
   ClientStatsResponse,
   NewDomainStat,
   NewDomainStatsResponse,
+  RecentNewDomain,
+  RecentNewDomainsResponse,
   SiteHourlyStat,
   SiteStatsResponse
 } from "@/types/domain";
@@ -37,4 +39,13 @@ export async function getNewDomainStats(client?: string): Promise<NewDomainStat[
     params: client ? { client } : undefined
   });
   return res.data.stats;
+}
+
+// The most recently first-seen (client, domain) pairs for the dashboard table.
+// GET /stats/new-domains/recent — ordered newest-first-seen first, capped at `limit`.
+export async function getRecentNewDomains(limit = 100): Promise<RecentNewDomain[]> {
+  const res = await api.get<RecentNewDomainsResponse>("/stats/new-domains/recent", {
+    params: { limit }
+  });
+  return res.data.domains;
 }

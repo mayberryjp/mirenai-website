@@ -9,9 +9,10 @@ import { useUiStore } from "@/stores/ui";
 const ui = useUiStore();
 const route = useRoute();
 
-// Routes that use the full content width with no client sidebar.
+// Routes that use the full content width with no client sidebar. Settings is a
+// parent route with child tabs, so match it anywhere in the matched chain.
 const fullWidthRoute = computed(() =>
-  ["queries", "settings"].includes(route.name as string)
+  route.matched.some((r) => r.name === "queries" || r.name === "settings")
 );
 </script>
 
@@ -41,7 +42,7 @@ const fullWidthRoute = computed(() =>
           :rel="item.href ? 'noopener noreferrer' : undefined"
           :prepend-icon="item.icon"
           :title="item.title"
-          :active="item.routeName ? route.name === item.routeName : false"
+          :active="item.routeName ? route.matched.some((r) => r.name === item.routeName) : false"
           color="rose"
           @click="ui.closeNavDrawer()"
         />

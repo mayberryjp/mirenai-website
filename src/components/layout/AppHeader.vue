@@ -64,7 +64,7 @@ const logoError = ref(false);
         variant="text"
         class="mx-2"
         rounded
-        :color="item.routeName && route.name === item.routeName ? 'rose' : ''"
+        :color="item.routeName && route.matched.some((r) => r.name === item.routeName) ? 'rose' : ''"
       >
         <v-icon start>
           {{ item.icon }}

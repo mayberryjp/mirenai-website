@@ -6,8 +6,12 @@ import type {
   NewDomainStatsResponse,
   RecentNewDomain,
   RecentNewDomainsResponse,
+  RuntimeStats,
+  RuntimeStatsResponse,
   SiteHourlyStat,
-  SiteStatsResponse
+  SiteStatsResponse,
+  UpstreamRttStat,
+  UpstreamRttStatsResponse
 } from "@/types/domain";
 
 // Per-client hourly query stats for the client detail chart.
@@ -48,4 +52,20 @@ export async function getRecentNewDomains(limit = 100): Promise<RecentNewDomain[
     params: { limit }
   });
   return res.data.domains;
+}
+
+// Current resolver runtime counters (cache, blocklist, upstreams, policies) for the dashboard banner.
+// GET /stats/runtime — a single snapshot object plus an updated_at timestamp.
+export async function getRuntimeStats(): Promise<RuntimeStats> {
+  const res = await api.get<RuntimeStatsResponse>("/stats/runtime");
+  return res.data.stats;
+}
+
+// Per-upstream hourly RTT (avg/max ms) for the upstreams page chart.
+// GET /stats/upstreams?hours=<n> — dense series, one row per (hour, address), null-filled.
+export async function getUpstreamRttStats(hours = 100): Promise<UpstreamRttStat[]> {
+  const res = await api.get<UpstreamRttStatsResponse>("/stats/upstreams", {
+    params: { hours }
+  });
+  return res.data.stats;
 }

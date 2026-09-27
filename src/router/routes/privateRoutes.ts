@@ -25,7 +25,30 @@ const privateRoutes: RouteRecordRaw[] = [
       {
         path: "settings",
         name: "settings",
-        component: () => import("@/views/SettingsView.vue")
+        redirect: { name: "settings-general" },
+        component: () => import("@/views/SettingsView.vue"),
+        children: [
+          {
+            path: "general",
+            name: "settings-general",
+            component: () => import("@/components/settings/GeneralSettingsPanel.vue")
+          },
+          {
+            path: "upstreams",
+            name: "settings-upstreams",
+            component: () => import("@/components/settings/UpstreamsPanel.vue")
+          },
+          {
+            path: "blocklists",
+            name: "settings-blocklists",
+            component: () => import("@/components/settings/BlocklistsPanel.vue")
+          },
+          {
+            path: "advanced",
+            name: "settings-advanced",
+            component: () => import("@/components/settings/AdvancedPanel.vue")
+          }
+        ]
       }
     ]
   }

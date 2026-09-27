@@ -1,38 +1,48 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { HourlyResultStat } from "@/types/domain";
+import type { UpstreamRttStat } from "@/types/domain";
 
 const props = withDefaults(
   defineProps<{
-    stats: HourlyResultStat[];
+    stats: UpstreamRttStat[];
     loading: boolean;
     error: string | null;
     title?: string;
-    totals?: { label: string; value: number; color?: string }[];
   }>(),
-  { title: "Site DNS Traffic", totals: () => [] }
+  { title: "Upstream RTT" }
 );
 
-// Oldest → newest, capped at the last 100 hourly buckets.
+// Oldest → newest across the window.
 const recent = computed(() =>
-  [...props.stats].sort((a, b) => a.hour_start.localeCompare(b.hour_start)).slice(-100)
+  [...props.stats].sort((a, b) => a.hour_start.localeCompare(b.hour_start))
 );
 const hasData = computed(() => recent.value.length > 0);
 
-const categories = computed(() => recent.value.map((s) => formatHour(s.hour_start)));
+// Shared hour axis (oldest → newest) and the set of upstream addresses.
+const hourAxis = computed(() => [...new Set(recent.value.map((s) => s.hour_start))].sort());
+const addresses = computed(() => [...new Set(recent.value.map((s) => s.address))]);
 
-const series = computed(() => [
-  { name: "Forwarded", type: "line", data: recent.value.map((s) => s.forwarded) },
-  { name: "Cached", type: "line", data: recent.value.map((s) => s.cached) },
-  { name: "Spoofed", type: "line", data: recent.value.map((s) => s.overridden) },
-  { name: "Policy Denied", type: "line", data: recent.value.map((s) => s.denied) },
-  { name: "Blocklist Denied", type: "line", data: recent.value.map((s) => s.blocked) },
-  { name: "Servfail", type: "line", data: recent.value.map((s) => s.servfail) }
-]);
+const categories = computed(() => hourAxis.value.map((h) => formatHour(h)));
+
+// avg_ms keyed by "hour|address" so every line has a point at every hour (null = no samples).
+const avgByKey = computed(() => {
+  const map = new Map<string, number | null>();
+  for (const s of props.stats) map.set(`${s.hour_start}|${s.address}`, s.avg_ms);
+  return map;
+});
+
+// One line per upstream address; null gaps where the upstream had no samples.
+const series = computed(() =>
+  addresses.value.map((addr) => ({
+    name: addr,
+    type: "line",
+    data: hourAxis.value.map((h) => avgByKey.value.get(`${h}|${addr}`) ?? null)
+  }))
+);
 
 const chartOptions = computed(() => ({
   chart: {
-    id: "site-traffic-chart",
+    id: "upstream-rtt-chart",
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
@@ -45,7 +55,7 @@ const chartOptions = computed(() => ({
   tooltip: {
     theme: "dark",
     shared: true,
-    y: { formatter: (val: number) => Math.round(val).toLocaleString() }
+    y: { formatter: (val: number | null) => (val == null ? "—" : `${val.toFixed(1)} ms`) }
   },
   grid: {
     borderColor: "#333",
@@ -58,7 +68,7 @@ const chartOptions = computed(() => ({
     axisTicks: { color: "#333" }
   },
   yaxis: {
-    title: { text: "Queries / hour", style: { color: "#4a90d9" } },
+    title: { text: "RTT (ms)", style: { color: "#4a90d9" } },
     labels: {
       style: { colors: "#b1b8c0" },
       formatter: (val: number) => Math.round(val).toLocaleString()
@@ -88,39 +98,18 @@ function formatHour(iso: string): string {
   const pad = (n: number): string => String(n).padStart(2, "0");
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:00`;
 }
-
-function fmt(n: number): string {
-  return n.toLocaleString();
-}
 </script>
 
 <template>
   <v-card
     color="surface-card"
-    class="site-traffic-card"
+    class="rtt-card"
   >
     <v-card-title class="d-flex align-center px-4 py-3">
-      <span class="text-h6 text-sm-h5 site-traffic-title">{{ title }}</span>
+      <span class="text-h6 text-sm-h5 rtt-title">{{ title }}</span>
       <v-spacer />
       <span class="text-caption text-grey">Last 100 hours</span>
     </v-card-title>
-
-    <div
-      v-if="totals.length"
-      class="d-flex flex-wrap align-center ga-2 px-4 pb-3"
-    >
-      <span class="text-caption text-grey">Last 100h:</span>
-      <v-chip
-        v-for="chip in totals"
-        :key="chip.label"
-        size="small"
-        variant="tonal"
-        :color="chip.color"
-      >
-        {{ chip.label }}: {{ fmt(chip.value) }}
-      </v-chip>
-    </div>
-
     <v-divider />
 
     <div
@@ -161,7 +150,7 @@ function fmt(n: number): string {
         mdi-chart-line
       </v-icon>
       <div class="text-grey">
-        No query history available for the last 100 hours.
+        No upstream RTT history available for the last 100 hours.
       </div>
     </v-card-text>
 
@@ -180,11 +169,11 @@ function fmt(n: number): string {
 </template>
 
 <style scoped>
-.site-traffic-card {
+.rtt-card {
   overflow: hidden;
 }
 
-.site-traffic-title {
+.rtt-title {
   font-family: var(--app-font-family);
   color: #ffffff;
 }

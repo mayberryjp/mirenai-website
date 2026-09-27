@@ -12,13 +12,14 @@ export const useQueriesStore = defineStore("queries", () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const page = ref(1);
+  const search = ref("");
 
   async function load(): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
       const offset = (page.value - 1) * PAGE_SIZE;
-      const res = await listQueries(PAGE_SIZE, offset);
+      const res = await listQueries(PAGE_SIZE, offset, search.value || undefined);
       items.value = res.items;
       total.value = res.total;
     } catch (e) {
@@ -33,11 +34,31 @@ export const useQueriesStore = defineStore("queries", () => {
     await load();
   }
 
+  // Server-side search: reset to the first page so the filtered total is paged
+  // from the start.
+  async function setSearch(next: string): Promise<void> {
+    search.value = next;
+    page.value = 1;
+    await load();
+  }
+
   async function clear(): Promise<void> {
     await clearQueries();
     page.value = 1;
     await load();
   }
 
-  return { items, total, loading, error, page, pageSize: PAGE_SIZE, load, setPage, clear };
+  return {
+    items,
+    total,
+    loading,
+    error,
+    page,
+    search,
+    pageSize: PAGE_SIZE,
+    load,
+    setPage,
+    setSearch,
+    clear
+  };
 });

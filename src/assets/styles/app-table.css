@@ -34,6 +34,24 @@
   overflow-x: auto;
 }
 
+/* Shared table text colour + date-column emphasis (the standard table style). */
+.app-table .v-table {
+  color: #b1b8c0;
+}
+
+.app-table .date-column {
+  color: #b1b8c0;
+  font-weight: 500;
+}
+
+/* No horizontal separators between body rows (desktop); the mobile card mode
+   below keeps its own field dividers. */
+@media (min-width: 960px) {
+  .app-table tbody > tr > td {
+    border-bottom: none !important;
+  }
+}
+
 /* --- Mobile card mode (< md) ---------------------------------------------- */
 @media (max-width: 959px) {
   .app-table .v-data-table__tr--mobile {

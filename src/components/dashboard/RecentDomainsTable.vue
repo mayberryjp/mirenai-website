@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
+import { usePoliciesStore } from "@/stores/policies";
+import PolicyControl from "@/components/base/PolicyControl.vue";
 import type { RecentNewDomain } from "@/types/domain";
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     rows: RecentNewDomain[];
     loading: boolean;
@@ -13,11 +16,30 @@ withDefaults(
 );
 
 const clients = useClientsStore();
+const policies = usePoliciesStore();
+
+const search = ref("");
+
+// Client-side filter over the loaded rows, matching domain, client IP, or the
+// resolved device name.
+const filteredRows = computed<RecentNewDomain[]>(() => {
+  const q = (search.value ?? "").trim().toLowerCase();
+  if (!q) return props.rows;
+  return props.rows.filter((r) => {
+    const name = clients.nameFor(r.client).toLowerCase();
+    return (
+      r.domain.toLowerCase().includes(q) ||
+      r.client.toLowerCase().includes(q) ||
+      name.includes(q)
+    );
+  });
+});
 
 const headers = [
   { title: "Client", key: "client" },
   { title: "Domain", key: "domain" },
   { title: "Action", key: "last_action" },
+  { title: "Policy", key: "policy", sortable: false },
   { title: "First Seen", key: "first_seen" }
 ];
 
@@ -60,16 +82,31 @@ function formatDateTime(iso: string): string {
   const pad = (n: number): string => String(n).padStart(2, "0");
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+onMounted(() => {
+  void policies.load();
+});
 </script>
 
 <template>
-  <v-card
-    color="surface-card"
+  <v-sheet
+    rounded="lg"
+    color="#090c10"
     class="recent-domains-card"
   >
-    <v-card-title class="d-flex align-center px-4 py-3">
-      <span class="text-h6 text-sm-h5 recent-domains-title">{{ title }}</span>
+    <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
+      <span class="text-h6 text-sm-h5 text-md-h4 recent-domains-title">{{ title }}</span>
       <v-spacer />
+      <v-text-field
+        v-model="search"
+        prepend-inner-icon="mdi-magnify"
+        placeholder="Filter domains"
+        density="compact"
+        variant="outlined"
+        hide-details
+        clearable
+        class="recent-search"
+      />
       <span class="text-caption text-grey">Newest first</span>
     </v-card-title>
     <v-divider />
@@ -87,9 +124,9 @@ function formatDateTime(iso: string): string {
     <v-data-table
       v-else
       :headers="headers"
-      :items="rows"
+      :items="filteredRows"
       :loading="loading"
-      density="comfortable"
+      density="compact"
       class="app-table"
       mobile-breakpoint="md"
       :items-per-page="25"
@@ -109,11 +146,18 @@ function formatDateTime(iso: string): string {
         </v-chip>
       </template>
 
+      <template #item.policy="{ item }">
+        <PolicyControl
+          :client="item.client"
+          :domain="item.domain"
+        />
+      </template>
+
       <template #item.first_seen="{ item }">
-        {{ formatDateTime(item.first_seen) }}
+        <span class="date-column">{{ formatDateTime(item.first_seen) }}</span>
       </template>
     </v-data-table>
-  </v-card>
+  </v-sheet>
 </template>
 
 <style scoped>
@@ -123,6 +167,10 @@ function formatDateTime(iso: string): string {
 
 .recent-domains-title {
   font-family: var(--app-font-family);
-  color: #ffffff;
+  color: #b1b8c0;
+}
+
+.recent-search {
+  max-width: 260px;
 }
 </style>

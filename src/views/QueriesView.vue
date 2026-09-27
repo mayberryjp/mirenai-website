@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useQueriesStore } from "@/stores/queries";
 import AsyncState from "@/components/base/AsyncState.vue";
@@ -17,6 +17,14 @@ const headers = [
 ];
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / store.pageSize)));
+
+// Debounced so we issue one request after typing settles, not per keystroke.
+const searchInput = ref("");
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+watch(searchInput, (val) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => void store.setSearch((val ?? "").trim()), 300);
+});
 
 const confirmClear = ref(false);
 const clearing = ref(false);
@@ -38,11 +46,21 @@ onMounted(() => {
 
 <template>
   <div>
-    <div class="d-flex align-center mb-4">
+    <div class="d-flex flex-wrap align-center ga-3 mb-4">
       <h1 class="text-h5">
         Query Log
       </h1>
       <v-spacer />
+      <v-text-field
+        v-model="searchInput"
+        prepend-inner-icon="mdi-magnify"
+        placeholder="Search client or domain"
+        density="compact"
+        variant="outlined"
+        hide-details
+        clearable
+        class="query-search"
+      />
       <v-btn
         color="error"
         variant="tonal"
@@ -59,11 +77,14 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No queries logged yet."
     >
-      <v-card color="surface-card">
+      <v-sheet
+        rounded="lg"
+        color="#090c10"
+      >
         <v-data-table
           :headers="headers"
           :items="items"
-          density="comfortable"
+          density="compact"
           class="app-table"
           mobile-breakpoint="md"
           :items-per-page="store.pageSize"
@@ -71,6 +92,9 @@ onMounted(() => {
         >
           <template #item.last_action="{ item }">
             {{ item.last_action ?? "—" }}
+          </template>
+          <template #item.last_seen="{ item }">
+            <span class="date-column">{{ item.last_seen }}</span>
           </template>
         </v-data-table>
         <div class="d-flex justify-center pa-2">
@@ -81,7 +105,7 @@ onMounted(() => {
             @update:model-value="store.setPage"
           />
         </div>
-      </v-card>
+      </v-sheet>
     </AsyncState>
 
     <v-dialog
@@ -111,3 +135,10 @@ onMounted(() => {
     </v-dialog>
   </div>
 </template>
+
+<style scoped>
+.query-search {
+  max-width: 320px;
+}
+</style>
+

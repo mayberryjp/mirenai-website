@@ -15,11 +15,14 @@ const headers = [
   { title: "Domains", key: "domain_count" },
   { title: "Last updated", key: "last_downloaded_at" },
   { title: "Status", key: "last_status" },
-  { title: "Enabled", key: "enabled" },
-  { title: "", key: "actions", sortable: false, align: "end" as const }
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const }
 ];
 
-function statusColor(status: string | null): string {
+// Combined enabled + status: a disabled list reads "disabled"; otherwise the
+// last run outcome (OK / failed / never run).
+function statusColor(item: Blocklist): string {
+  if (!item.enabled) return "grey";
+  const status = item.last_status;
   if (!status) return "grey";
   const s = status.toLowerCase();
   if (s.includes("ok") || s.includes("success")) return "success";
@@ -27,7 +30,9 @@ function statusColor(status: string | null): string {
   return "info";
 }
 
-function statusIcon(status: string | null): string {
+function statusIcon(item: Blocklist): string {
+  if (!item.enabled) return "mdi-cancel";
+  const status = item.last_status;
   if (!status) return "mdi-clock-outline";
   const s = status.toLowerCase();
   if (s.includes("ok") || s.includes("success")) return "mdi-check-circle";
@@ -35,7 +40,9 @@ function statusIcon(status: string | null): string {
   return "mdi-information";
 }
 
-function statusLabel(status: string | null): string {
+function statusLabel(item: Blocklist): string {
+  if (!item.enabled) return "disabled";
+  const status = item.last_status;
   if (!status || !status.trim()) return "never run";
   // Backend embeds the domain count (e.g. "ok: 75945 domains") — show just the status.
   return status.replace(/:.*$/, "").trim();
@@ -169,11 +176,14 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No blocklists configured."
     >
-      <v-card color="surface-card">
+      <v-sheet
+        rounded="lg"
+        color="#090c10"
+      >
         <v-data-table
           :headers="headers"
           :items="items"
-          density="comfortable"
+          density="compact"
           class="app-table"
           mobile-breakpoint="md"
         >
@@ -186,8 +196,7 @@ onMounted(() => {
                 mdi-link-variant
               </v-icon>
               <span
-                class="text-truncate d-inline-block source-url"
-                style="max-width: 340px"
+                class="source-url"
                 :title="item.url"
               >{{ item.url }}</span>
             </div>
@@ -199,11 +208,11 @@ onMounted(() => {
             <span class="font-weight-medium">{{ item.domain_count.toLocaleString() }}</span>
           </template>
           <template #item.last_downloaded_at="{ item }">
-            <span class="text-medium-emphasis">{{ formatUpdated(item.last_downloaded_at) }}</span>
+            <span class="date-column">{{ formatUpdated(item.last_downloaded_at) }}</span>
           </template>
           <template #item.last_status="{ item }">
             <v-chip
-              :color="statusColor(item.last_status)"
+              :color="statusColor(item)"
               size="small"
               variant="tonal"
             >
@@ -211,18 +220,9 @@ onMounted(() => {
                 start
                 size="14"
               >
-                {{ statusIcon(item.last_status) }}
+                {{ statusIcon(item) }}
               </v-icon>
-              {{ statusLabel(item.last_status) }}
-            </v-chip>
-          </template>
-          <template #item.enabled="{ item }">
-            <v-chip
-              :color="item.enabled ? 'success' : 'error'"
-              size="small"
-              variant="tonal"
-            >
-              {{ item.enabled ? "yes" : "no" }}
+              {{ statusLabel(item) }}
             </v-chip>
           </template>
           <template #item.actions="{ item }">
@@ -249,7 +249,7 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
-      </v-card>
+      </v-sheet>
     </AsyncState>
 
     <v-dialog
@@ -339,5 +339,7 @@ onMounted(() => {
 .source-url {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 </style>

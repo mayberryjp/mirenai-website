@@ -3,6 +3,7 @@ import type { DeleteResult } from "@/types/api";
 import type {
   Page,
   Upstream,
+  UpstreamCheckResponse,
   UpstreamCreate,
   UpstreamList,
   UpstreamResponse,
@@ -32,4 +33,10 @@ export async function updateUpstream(id: number, body: UpstreamUpdate): Promise<
 export async function deleteUpstream(id: number): Promise<number> {
   const res = await api.delete<DeleteResult>(`/upstreams/${id}`);
   return res.data.deleted;
+}
+
+// Sends a sample DNS query through the upstream and returns the measured round-trip time (ms).
+export async function checkUpstream(id: number): Promise<number> {
+  const res = await api.post<UpstreamCheckResponse>(`/upstreams/${id}/check`);
+  return res.data.rtt_ms;
 }

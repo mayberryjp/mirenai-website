@@ -163,6 +163,25 @@ export interface RecentNewDomain {
   last_action: PolicyAction | null; // action taken (forward=Allow, deny=Block, …); null = default/none
 }
 
+// Current resolver runtime counters for the dashboard stat banner. Served by GET /stats/runtime.
+export interface RuntimeStats {
+  cache_size: number;
+  cache_capacity: number;
+  blocklist_domains: number;
+  upstreams: number;
+  policies: number;
+}
+
+// Per-upstream hourly RTT stats for the upstreams RTT chart. Served by
+// GET /stats/upstreams?hours=<n>; one dense row per (hour, address), null-filled.
+export interface UpstreamRttStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  address: string;
+  samples: number;
+  avg_ms: number | null; // null when samples === 0
+  max_ms: number | null; // null when samples === 0
+}
+
 // ---- Settings ----
 export interface Settings {
   cache_enabled: boolean;
@@ -171,6 +190,7 @@ export interface Settings {
   cache_max_entries: number;
   forward_timeout: number;
   default_action: "deny" | "forward";
+  ipv6_enabled: boolean;
   refresh_seconds: number;
   query_flush_seconds: number;
   log_queries: boolean;
@@ -183,6 +203,8 @@ export type PolicyList = OkEnvelope & { policies: Policy[]; total: number };
 
 export type UpstreamResponse = OkEnvelope & { upstream: Upstream };
 export type UpstreamList = OkEnvelope & { upstreams: Upstream[]; total: number };
+// POST /upstreams/{id}/check — sample DNS query through the upstream; round-trip time in ms.
+export type UpstreamCheckResponse = OkEnvelope & { rtt_ms: number };
 
 export type BlocklistResponse = OkEnvelope & { blocklist: Blocklist };
 export type BlocklistList = OkEnvelope & { blocklists: Blocklist[]; total: number };
@@ -197,6 +219,9 @@ export type QueryList = OkEnvelope & { queries: QueryLog[]; total: number };
 export type SettingsResponse = OkEnvelope & { settings: Settings };
 
 export type HealthResponse = OkEnvelope & { service: string };
+
+// POST /cache/flush — records a flush request; the worker clears its cache on its next poll.
+export type CacheFlushResponse = OkEnvelope & { requested_at: string };
 
 // GET /stats?client=<ip>&hours=<n> — per-client hourly stats.
 export type ClientStatsResponse = OkEnvelope & {
@@ -219,6 +244,18 @@ export type NewDomainStatsResponse = OkEnvelope & {
 // GET /stats/new-domains/recent[?limit=<n>] — most recently first-seen (client, domain) pairs.
 export type RecentNewDomainsResponse = OkEnvelope & {
   domains: RecentNewDomain[];
+  total: number;
+};
+
+// GET /stats/runtime — current cache/blocklist/upstream/policy counters plus a snapshot timestamp.
+export type RuntimeStatsResponse = OkEnvelope & {
+  stats: RuntimeStats;
+  updated_at: string;
+};
+
+// GET /stats/upstreams?hours=<n> — dense per-upstream hourly RTT series.
+export type UpstreamRttStatsResponse = OkEnvelope & {
+  stats: UpstreamRttStat[];
   total: number;
 };
 

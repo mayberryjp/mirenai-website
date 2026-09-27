@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
-import { getRecentNewDomains, getSiteStats } from "@/services/stats";
+import { getRecentNewDomains, getRuntimeStats, getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
 import RecentDomainsTable from "@/components/dashboard/RecentDomainsTable.vue";
-import type { RecentNewDomain, SiteHourlyStat } from "@/types/domain";
+import type { RecentNewDomain, RuntimeStats, SiteHourlyStat } from "@/types/domain";
 
 const clients = useClientsStore();
 
@@ -16,6 +16,8 @@ const siteError = ref<string | null>(null);
 const recentDomains = ref<RecentNewDomain[]>([]);
 const recentLoading = ref(true);
 const recentError = ref<string | null>(null);
+
+const runtime = ref<RuntimeStats | null>(null);
 
 // Aggregate the already-loaded 100-hour site stats (no extra API calls).
 const siteTotals = computed(() =>
@@ -31,12 +33,40 @@ const siteTotals = computed(() =>
   )
 );
 
+// Top banner: current resolver runtime snapshot (GET /stats/runtime).
 const stats = computed(() => [
-  { label: "Clients", description: "Seen", value: clients.total, color: "text-blue" },
-  { label: "Queries", description: "Last 100h", value: siteTotals.value.total, color: "text-green" },
-  { label: "Cached", description: "Last 100h", value: siteTotals.value.cached, color: "text-blue" },
-  { label: "Blocked", description: "Last 100h", value: siteTotals.value.blocked, color: "text-green" },
-  { label: "Denied", description: "Last 100h", value: siteTotals.value.denied, color: "text-blue" }
+  {
+    label: "Cache Size",
+    description: `of ${fmt(runtime.value?.cache_capacity ?? 0)}`,
+    value: runtime.value?.cache_size ?? 0,
+    color: "text-blue"
+  },
+  {
+    label: "Blocklist Domains",
+    description: "In Blocklist",
+    value: runtime.value?.blocklist_domains ?? 0,
+    color: "text-green"
+  },
+  {
+    label: "Upstreams",
+    description: "Resolvers",
+    value: runtime.value?.upstreams ?? 0,
+    color: "text-blue"
+  },
+  {
+    label: "Policies",
+    description: "Rules",
+    value: runtime.value?.policies ?? 0,
+    color: "text-green"
+  }
+]);
+
+// Traffic totals moved into chips under the Site DNS Traffic header.
+const trafficChips = computed(() => [
+  { label: "Queries", value: siteTotals.value.total, color: "#2ec4a0" },
+  { label: "Cached", value: siteTotals.value.cached, color: "#4a90d9" },
+  { label: "Blocklist Denied", value: siteTotals.value.blocked, color: "#ff5a36" },
+  { label: "Policy Denied", value: siteTotals.value.denied, color: "#f5822a" }
 ]);
 
 function fmt(n: number): string {
@@ -69,19 +99,24 @@ async function loadRecentDomains(): Promise<void> {
   }
 }
 
+async function loadRuntime(): Promise<void> {
+  try {
+    runtime.value = await getRuntimeStats();
+  } catch {
+    runtime.value = null;
+  }
+}
+
 onMounted(() => {
   if (!clients.loaded) void clients.load();
   void loadSiteStats();
   void loadRecentDomains();
+  void loadRuntime();
 });
 </script>
 
 <template>
   <div>
-    <h1 class="text-h5 font-weight-bold mb-4">
-      Dashboard
-    </h1>
-
     <!-- Quick stats banner -->
     <v-row class="quickstats-background ma-0 rounded-lg mb-4">
       <v-col
@@ -114,6 +149,7 @@ onMounted(() => {
       :stats="siteStats"
       :loading="siteLoading"
       :error="siteError"
+      :totals="trafficChips"
     />
 
     <!-- Recently first-seen client/domain pairs -->

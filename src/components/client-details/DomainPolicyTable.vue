@@ -206,8 +206,11 @@ watch(
 </script>
 
 <template>
-  <v-card color="surface-card">
-    <v-card-title class="text-subtitle-1">
+  <v-sheet
+    rounded="lg"
+    color="#090c10"
+  >
+    <v-card-title class="text-h6 text-sm-h5 text-md-h4 policy-title d-flex align-center px-4 py-3">
       Domain Queries &amp; Policy Override
     </v-card-title>
     <v-divider />
@@ -228,7 +231,7 @@ watch(
       :headers="headers"
       :items="rows"
       :loading="loading"
-      density="comfortable"
+      density="compact"
       class="app-table"
       mobile-breakpoint="md"
       :items-per-page="25"
@@ -292,11 +295,19 @@ watch(
           </template>
         </div>
       </template>
+
+      <template #item.last_seen="{ item }">
+        <span class="date-column">{{ item.last_seen }}</span>
+      </template>
     </v-data-table>
-  </v-card>
+  </v-sheet>
 </template>
 
 <style scoped>
+.policy-title {
+  color: #b1b8c0;
+}
+
 .choice-select {
   min-width: 120px;
   max-width: 140px;

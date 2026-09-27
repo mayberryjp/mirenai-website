@@ -2,34 +2,34 @@
 import { onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useUpstreamsStore } from "@/stores/upstreams";
+import { checkUpstream } from "@/services/upstreams";
+import { getUpstreamRttStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { Upstream, UpstreamCreate, UpstreamProtocol } from "@/types/domain";
+import UpstreamRttChart from "@/components/dashboard/UpstreamRttChart.vue";
+import type { Upstream, UpstreamCreate, UpstreamRttStat } from "@/types/domain";
 
 const store = useUpstreamsStore();
 const { items, loading, error } = storeToRefs(store);
-
-const protocols: UpstreamProtocol[] = ["udp", "tcp"];
 
 const headers = [
   { title: "Priority", key: "priority" },
   { title: "Address", key: "address" },
   { title: "Port", key: "port" },
-  { title: "Protocol", key: "protocol" },
   { title: "Enabled", key: "enabled" },
-  { title: "", key: "actions", sortable: false, align: "end" as const }
+  { title: "RTT", key: "rtt", sortable: false, align: "end" as const },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const }
 ];
 
 interface UpstreamForm {
   address: string;
   port: number;
-  protocol: UpstreamProtocol;
   enabled: boolean;
   priority: number;
 }
 
 function emptyForm(): UpstreamForm {
-  return { address: "", port: 53, protocol: "udp", enabled: true, priority: 100 };
+  return { address: "", port: 53, enabled: true, priority: 100 };
 }
 
 const dialog = ref(false);
@@ -50,7 +50,6 @@ function openEdit(row: Upstream): void {
   Object.assign(form, {
     address: row.address,
     port: row.port,
-    protocol: row.protocol,
     enabled: row.enabled,
     priority: row.priority
   });
@@ -64,7 +63,7 @@ async function submit(): Promise<void> {
   const body: UpstreamCreate = {
     address: form.address.trim(),
     port: form.port,
-    protocol: form.protocol,
+    protocol: "udp",
     enabled: form.enabled,
     priority: form.priority
   };
@@ -96,8 +95,58 @@ async function remove(): Promise<void> {
   }
 }
 
+interface RttState {
+  loading: boolean;
+  ms: number | null;
+  error: string | null;
+}
+const rttState = reactive<Record<number, RttState>>({});
+
+function rttLoading(id: number): boolean {
+  return rttState[id]?.loading ?? false;
+}
+
+function rttLabel(id: number): string {
+  const ms = rttState[id]?.ms;
+  return ms == null ? "" : `${ms.toFixed(1)} ms`;
+}
+
+function rttError(id: number): string | null {
+  return rttState[id]?.error ?? null;
+}
+
+async function checkRtt(row: Upstream): Promise<void> {
+  rttState[row.id] = { loading: true, ms: null, error: null };
+  try {
+    const ms = await checkUpstream(row.id);
+    rttState[row.id] = { loading: false, ms, error: null };
+  } catch (e) {
+    rttState[row.id] = { loading: false, ms: null, error: apiErrorMessage(e) };
+  }
+}
+
+// Historical per-upstream RTT series for the chart (separate from the per-row
+// on-demand "Check RTT" probe above).
+const rttChartStats = ref<UpstreamRttStat[]>([]);
+const rttChartLoading = ref(true);
+const rttChartError = ref<string | null>(null);
+
+async function loadRttChart(): Promise<void> {
+  rttChartLoading.value = true;
+  rttChartError.value = null;
+  try {
+    rttChartStats.value = await getUpstreamRttStats(100);
+  } catch (e) {
+    rttChartError.value = apiErrorMessage(e);
+    rttChartStats.value = [];
+  } finally {
+    rttChartLoading.value = false;
+  }
+}
+
 onMounted(() => {
   void store.load();
+  void loadRttChart();
 });
 </script>
 
@@ -121,11 +170,14 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No upstream resolvers."
     >
-      <v-card color="surface-card">
+      <v-sheet
+        rounded="lg"
+        color="#090c10"
+      >
         <v-data-table
           :headers="headers"
           :items="items"
-          density="comfortable"
+          density="compact"
           class="app-table"
           mobile-breakpoint="md"
         >
@@ -137,6 +189,41 @@ onMounted(() => {
             >
               {{ item.enabled ? "yes" : "no" }}
             </v-chip>
+          </template>
+          <template #item.rtt="{ item }">
+            <div class="d-flex align-center justify-end ga-2">
+              <span
+                v-if="rttLabel(item.id)"
+                class="rtt-value"
+              >
+                {{ rttLabel(item.id) }}
+              </span>
+              <v-tooltip
+                v-else-if="rttError(item.id)"
+                :text="rttError(item.id) ?? ''"
+                location="top"
+              >
+                <template #activator="{ props }">
+                  <v-icon
+                    v-bind="props"
+                    color="error"
+                    size="small"
+                  >
+                    mdi-alert-circle-outline
+                  </v-icon>
+                </template>
+              </v-tooltip>
+              <v-btn
+                :loading="rttLoading(item.id)"
+                size="small"
+                variant="tonal"
+                color="primary"
+                prepend-icon="mdi-speedometer"
+                @click="checkRtt(item)"
+              >
+                Check RTT
+              </v-btn>
+            </div>
           </template>
           <template #item.actions="{ item }">
             <v-btn
@@ -154,8 +241,15 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
-      </v-card>
+      </v-sheet>
     </AsyncState>
+
+    <UpstreamRttChart
+      :stats="rttChartStats"
+      :loading="rttChartLoading"
+      :error="rttChartError"
+      class="mt-4"
+    />
 
     <v-dialog
       v-model="dialog"
@@ -180,11 +274,6 @@ onMounted(() => {
             v-model.number="form.port"
             type="number"
             label="Port"
-          />
-          <v-select
-            v-model="form.protocol"
-            :items="protocols"
-            label="Protocol"
           />
           <v-text-field
             v-model.number="form.priority"
@@ -246,3 +335,11 @@ onMounted(() => {
     </v-dialog>
   </div>
 </template>
+
+<style scoped>
+.rtt-value {
+  color: #b1b8c0;
+  font-weight: 500;
+  white-space: nowrap;
+}
+</style>

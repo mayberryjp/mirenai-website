@@ -160,6 +160,7 @@ export interface RecentNewDomain {
   client: string;
   domain: string;
   first_seen: string; // ISO, container-local wall-clock (no offset)
+  last_action: PolicyAction | null; // action taken (forward=Allow, deny=Block, …); null = default/none
 }
 
 // ---- Settings ----

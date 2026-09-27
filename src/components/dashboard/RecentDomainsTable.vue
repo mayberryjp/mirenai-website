@@ -17,8 +17,40 @@ const clients = useClientsStore();
 const headers = [
   { title: "Client", key: "client" },
   { title: "Domain", key: "domain" },
+  { title: "Action", key: "last_action" },
   { title: "First Seen", key: "first_seen" }
 ];
+
+// Map the policy action to the same label/colour as the client policy table.
+function actionLabel(action: string | null): string {
+  switch (action) {
+    case "forward":
+      return "Allow";
+    case "deny":
+      return "Block";
+    case "override":
+      return "Spoof";
+    case "blocklist":
+      return "Blocklist";
+    case "default":
+      return "Default";
+    default:
+      return "—";
+  }
+}
+
+function actionColor(action: string | null): string {
+  switch (action) {
+    case "deny":
+      return "error"; // Block — red
+    case "override":
+      return "warning"; // Spoof — orange
+    case "blocklist":
+      return "burgundy"; // Blocklist — deep red
+    default:
+      return "grey"; // Allow / Default / none
+  }
+}
 
 // Datetimes arrive without an offset (container-local); render in that same local
 // wall-clock, matching the traffic chart's formatting.
@@ -65,6 +97,16 @@ function formatDateTime(iso: string): string {
     >
       <template #item.client="{ item }">
         {{ clients.nameFor(item.client) }}
+      </template>
+
+      <template #item.last_action="{ item }">
+        <v-chip
+          size="small"
+          variant="tonal"
+          :color="actionColor(item.last_action)"
+        >
+          {{ actionLabel(item.last_action) }}
+        </v-chip>
       </template>
 
       <template #item.first_seen="{ item }">

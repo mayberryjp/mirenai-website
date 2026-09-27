@@ -41,7 +41,7 @@ const logoError = ref(false);
         class="mr-3"
       />
       <span class="product-name text-subtitle-1 text-lg-h5">
-        Mirenai ミレナイ
+        Miren
         <span class="product-bar tagline">|</span>
         <span class="tagline-text tagline">Know Your Network</span>
       </span>

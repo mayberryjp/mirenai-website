@@ -64,7 +64,7 @@ const activeTab = ref("general");
             </v-window-item>
 
             <v-window-item value="upstreams">
-              <h3>Upstreams</h3>
+              <h3>Upstream DNS Servers</h3>
               <v-divider class="my-4" />
               <UpstreamsPanel />
             </v-window-item>

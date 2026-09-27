@@ -89,8 +89,8 @@ export interface QueryLog {
 }
 
 // ---- Clients ----
-// The client roster is derived from the query log (one entry per distinct
-// QueryLog.client) — see services/clients.ts.
+// The client roster is the device inventory from /hosts (one entry per host) —
+// see services/clients.ts.
 export interface ClientSummary {
   client: string; // IP address
   total_queries: number; // sum of QueryLog.count
@@ -111,11 +111,12 @@ export interface ClientModeState {
 }
 
 // ---- Hosts ----
-// Server-recorded device rows, one per client IP. Only device_name is writable.
+// Server-recorded device rows, one per client IP. device_name and icon are writable.
 export interface Host {
   id: number;
   ip: string;
   device_name: string | null;
+  icon: string | null; // icon key (e.g. "TV"); null until set
   query_count: number; // read-only
   first_seen: string; // read-only
   last_seen: string; // read-only
@@ -143,6 +144,14 @@ export interface ClientStat extends HourlyResultStat {
   id: number;
   client: string;
   total: number;
+}
+
+// Per-client hourly count of newly-seen ("new") domains — one row per (hour, client).
+// Served by GET /stats/new-domains[?client=<ip>]; powers the client-list alert bars.
+export interface NewDomainStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  client: string;
+  new_domains: number;
 }
 
 // ---- Settings ----
@@ -189,6 +198,12 @@ export type ClientStatsResponse = OkEnvelope & {
 // GET /stats/site — site-wide hourly totals (newest hour first, paginated).
 export type SiteStatsResponse = OkEnvelope & {
   stats: SiteHourlyStat[];
+  total: number;
+};
+
+// GET /stats/new-domains[?client=<ip>] — per-client hourly new-domain counts.
+export type NewDomainStatsResponse = OkEnvelope & {
+  stats: NewDomainStat[];
   total: number;
 };
 

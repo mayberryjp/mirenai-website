@@ -17,3 +17,13 @@ export async function updateHostName(id: number, deviceName: string | null): Pro
   const res = await api.put<HostResponse>(`/hosts/${id}`, { device_name: deviceName });
   return res.data.host;
 }
+
+// Refresh this host's details (name, icon, etc.) from Sando via the mirenai backend.
+export async function syncHost(id: number): Promise<void> {
+  await api.post(`/hosts/${id}/sync`);
+}
+
+// Remove a host record entirely (DELETE returns { deleted: <id> }).
+export async function deleteHost(id: number): Promise<void> {
+  await api.delete(`/hosts/${id}`);
+}

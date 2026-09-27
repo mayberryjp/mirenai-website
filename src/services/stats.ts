@@ -2,6 +2,8 @@ import api from "@/services/api";
 import type {
   ClientStat,
   ClientStatsResponse,
+  NewDomainStat,
+  NewDomainStatsResponse,
   SiteHourlyStat,
   SiteStatsResponse
 } from "@/types/domain";
@@ -24,6 +26,15 @@ export async function getClientStats(
 export async function getSiteStats(hours = 100): Promise<SiteHourlyStat[]> {
   const res = await api.get<SiteStatsResponse>("/stats/site", {
     params: { limit: hours }
+  });
+  return res.data.stats;
+}
+
+// Per-client hourly counts of newly-seen domains, powering the client-list alert bars.
+// GET /stats/new-domains (site-wide) or ?client=<ip> for a single client.
+export async function getNewDomainStats(client?: string): Promise<NewDomainStat[]> {
+  const res = await api.get<NewDomainStatsResponse>("/stats/new-domains", {
+    params: client ? { client } : undefined
   });
   return res.data.stats;
 }

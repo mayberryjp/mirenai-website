@@ -4,6 +4,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import { useClientsStore } from "@/stores/clients";
 import AsyncState from "@/components/base/AsyncState.vue";
+import DeviceIcon from "@/components/base/DeviceIcon.vue";
+import AlertBars from "@/components/base/AlertBars.vue";
 
 const store = useClientsStore();
 const route = useRoute();
@@ -133,12 +135,11 @@ onMounted(() => {
               <div class="d-flex align-center w-100">
                 <!-- Icon container with fixed width for alignment -->
                 <div class="icon-container">
-                  <v-icon
-                    size="24"
+                  <DeviceIcon
+                    :icon="store.iconFor(c.client)"
+                    :size="24"
                     color="#64B5F6"
-                  >
-                    mdi-monitor
-                  </v-icon>
+                  />
                 </div>
 
                 <!-- Client info with consistent left margin -->
@@ -146,8 +147,14 @@ onMounted(() => {
                   {{ store.nameFor(c.client) }}
                 </div>
 
+                <!-- New-domain activity for this client (last 12 hours) -->
+                <AlertBars
+                  :alert-intervals="store.newDomainsFor(c.client)"
+                  class="ml-2"
+                />
+
                 <!-- Query count (right-aligned, like the reference threat score) -->
-                <div class="threat-score-text ml-auto">
+                <div class="threat-score-text">
                   {{ formatCount(c.total_queries) }}
                 </div>
               </div>
@@ -183,6 +190,7 @@ onMounted(() => {
 
 .host-info {
   flex-grow: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

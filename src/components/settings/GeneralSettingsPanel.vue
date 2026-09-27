@@ -73,11 +73,14 @@ onMounted(() => {
           v-model="form.default_action"
           :items="defaultActions"
           label="Default action (no policy match)"
+          hint="When no more specific policy exists. Policy is inherited by new clients"
+          persistent-hint
         />
         <v-switch
           v-model="form.cache_enabled"
           label="DNS cache enabled"
           color="primary"
+          messages="Cache DNS responses longer than authoritative DNS TTL - helps improve performance may be serve stale results"
         />
         <v-text-field
           v-model.number="form.cache_max_ttl"

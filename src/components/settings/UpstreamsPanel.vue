@@ -104,13 +104,14 @@ onMounted(() => {
 <template>
   <div>
     <div class="d-flex align-center mb-4">
+      <span class="text-medium-emphasis text-body-2">Equal priority upstreams will be load balanced.</span>
       <v-spacer />
       <v-btn
         color="primary"
         prepend-icon="mdi-plus"
         @click="openCreate"
       >
-        New upstream
+        New Upstream DNS Server
       </v-btn>
     </div>
 

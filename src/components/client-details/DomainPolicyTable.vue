@@ -60,11 +60,11 @@ function actionLabel(action: string | null): string {
     case "forward":
       return "Allow";
     case "deny":
-      return "Block";
+      return "Policy Denied";
     case "override":
       return "Spoof";
     case "blocklist":
-      return "Blocklist";
+      return "Blocklist Denied";
     case "default":
       return "Default";
     default:
@@ -76,11 +76,11 @@ function actionLabel(action: string | null): string {
 function actionColor(action: string | null): string {
   switch (action) {
     case "deny":
-      return "error"; // Block — red
+      return "error"; // Policy Denied — red
     case "override":
       return "warning"; // Spoof — orange
     case "blocklist":
-      return "burgundy"; // Blocklist — deep red
+      return "burgundy"; // Blocklist Denied — deep red
     default:
       return "grey"; // Allow / Default / none
   }

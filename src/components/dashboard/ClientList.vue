@@ -20,7 +20,11 @@ const searchTerm = ref("");
 const filteredClients = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return store.clients;
-  return store.clients.filter((c) => c.client.toLowerCase().includes(q));
+  return store.clients.filter(
+    (c) =>
+      c.client.toLowerCase().includes(q) ||
+      store.nameFor(c.client).toLowerCase().includes(q)
+  );
 });
 
 const selectedClient = computed(() =>

@@ -118,6 +118,7 @@ export interface Host {
   mac_address: string | null; // read-only; auto-recorded like ip
   device_name: string | null;
   icon: string | null; // icon key (e.g. "TV"); null until set
+  excluded_from_blocklist: boolean; // writable via PUT /hosts/{id}; true = bypass the blocklist
   query_count: number; // read-only
   first_seen: string; // read-only
   last_seen: string; // read-only

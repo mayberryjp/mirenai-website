@@ -96,7 +96,7 @@ export const useClientsStore = defineStore("clients", () => {
   }
 
   // Number of most-recent hourly buckets shown as alert bars per client.
-  const NEW_DOMAIN_HOURS = 12;
+  const NEW_DOMAIN_HOURS = 8;
 
   // Shared time axis (oldest → newest) across the most recent NEW_DOMAIN_HOURS
   // buckets present in the data, so every client's bars line up on the same hours.

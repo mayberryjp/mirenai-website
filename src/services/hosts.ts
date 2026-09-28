@@ -18,6 +18,12 @@ export async function updateHostName(id: number, deviceName: string | null): Pro
   return res.data.host;
 }
 
+// excluded_from_blocklist: true opts this client out of blocklist enforcement.
+export async function setHostBlocklistExclusion(id: number, excluded: boolean): Promise<Host> {
+  const res = await api.put<HostResponse>(`/hosts/${id}`, { excluded_from_blocklist: excluded });
+  return res.data.host;
+}
+
 // Refresh this host's details (name, icon, etc.) from Sando via the mirenai backend.
 export async function syncHost(id: number): Promise<void> {
   await api.post(`/hosts/${id}/sync`);

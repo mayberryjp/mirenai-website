@@ -29,7 +29,7 @@ function getAlertClass(alertCount: number): string {
 <template>
   <div
     class="alert-bars"
-    :style="{ minWidth: `min(${containerMinWidth}px, 100%)` }"
+    :style="{ width: `min(${containerMinWidth}px, 100%)` }"
   >
     <div
       v-for="(count, index) in alertIntervals"
@@ -47,7 +47,6 @@ function getAlertClass(alertCount: number): string {
   display: flex;
   gap: 2px;
   flex-shrink: 0;
-  width: 120px;
   align-items: center;
   overflow: hidden;
 }

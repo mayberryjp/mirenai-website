@@ -5,7 +5,7 @@ import { useClientsStore } from "@/stores/clients";
 import { useSettingsStore } from "@/stores/settings";
 import { getClientStats } from "@/services/stats";
 import { getClientMode, setClientMode } from "@/services/clients";
-import { deleteHost, findHostByIp, syncHost } from "@/services/hosts";
+import { deleteHost, findHostByIp, setHostBlocklistExclusion, syncHost } from "@/services/hosts";
 import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
 import DeviceIcon from "@/components/base/DeviceIcon.vue";
@@ -27,6 +27,11 @@ const statsError = ref<string | null>(null);
 const clientMode = ref<ClientMode | null>(null);
 const modeSaving = ref(false);
 const modeError = ref<string | null>(null);
+
+const hostId = ref<number | null>(null);
+const excludedFromBlocklist = ref<boolean | null>(null);
+const blocklistSaving = ref(false);
+const blocklistError = ref<string | null>(null);
 
 const syncing = ref(false);
 const syncError = ref<string | null>(null);
@@ -88,6 +93,42 @@ async function onModeChange(next: SettableClientMode): Promise<void> {
   }
 }
 
+// Load the host row for this client to seed the blocklist toggle (id + current flag).
+async function loadHost(): Promise<void> {
+  blocklistError.value = null;
+  try {
+    const host = await findHostByIp(client.value);
+    hostId.value = host?.id ?? null;
+    excludedFromBlocklist.value = host?.excluded_from_blocklist ?? null;
+  } catch (e) {
+    blocklistError.value = apiErrorMessage(e);
+  }
+}
+
+// Blocklist enforcement per client: false = included (blue), true = excluded (orange).
+async function onBlocklistChange(next: boolean): Promise<void> {
+  if (
+    blocklistSaving.value ||
+    hostId.value === null ||
+    next === excludedFromBlocklist.value
+  ) {
+    return;
+  }
+  const prev = excludedFromBlocklist.value;
+  blocklistSaving.value = true;
+  blocklistError.value = null;
+  excludedFromBlocklist.value = next; // optimistic
+  try {
+    const host = await setHostBlocklistExclusion(hostId.value, next);
+    excludedFromBlocklist.value = host.excluded_from_blocklist;
+  } catch (e) {
+    excludedFromBlocklist.value = prev;
+    blocklistError.value = apiErrorMessage(e);
+  } finally {
+    blocklistSaving.value = false;
+  }
+}
+
 // Pull the latest host details (name, icon, etc.) from Sando, then hard-refresh
 // so every component re-reads the updated host.
 async function onSync(): Promise<void> {
@@ -128,15 +169,18 @@ onMounted(() => {
   if (!settingsStore.settings) void settingsStore.load();
   void loadStats();
   void loadMode();
+  void loadHost();
 });
 
 // Re-fetch when navigating between clients without leaving the route.
 watch(client, () => {
   syncError.value = null;
   deleteError.value = null;
+  blocklistError.value = null;
   confirmDelete.value = false;
   void loadStats();
   void loadMode();
+  void loadHost();
 });
 </script>
 
@@ -167,38 +211,75 @@ watch(client, () => {
               <span class="ms-4">MAC Address: {{ store.macFor(client) }}</span>
             </div>
 
-            <!-- Compact client policy: Allow / Block -->
+            <!-- Compact client policy: response mode + blocklist opt-out -->
             <div class="client-policy mt-3">
-              <div class="policy-label text-caption text-medium-emphasis mb-1">
-                Response policy
-              </div>
-              <div class="d-flex align-center flex-wrap ga-2">
-                <v-btn-toggle
-                  :model-value="selectedMode"
-                  density="compact"
-                  variant="tonal"
-                  divided
-                  class="policy-toggle"
-                >
-                  <v-btn
-                    value="forward"
-                    size="small"
-                    :color="selectedMode === 'forward' ? 'success' : undefined"
-                    :disabled="modeSaving"
-                    @click="onModeChange('forward')"
+              <div class="d-flex align-end flex-wrap ga-3">
+                <!-- Response mode: Allow / Block -->
+                <div class="policy-group">
+                  <div class="policy-label text-caption text-medium-emphasis mb-1">
+                    Response policy
+                  </div>
+                  <v-btn-toggle
+                    :model-value="selectedMode"
+                    density="compact"
+                    variant="tonal"
+                    divided
+                    class="policy-toggle"
                   >
-                    Allow
-                  </v-btn>
-                  <v-btn
-                    value="deny"
-                    size="small"
-                    :color="selectedMode === 'deny' ? 'error' : undefined"
-                    :disabled="modeSaving"
-                    @click="onModeChange('deny')"
+                    <v-btn
+                      value="forward"
+                      size="small"
+                      :color="selectedMode === 'forward' ? 'success' : undefined"
+                      :disabled="modeSaving"
+                      @click="onModeChange('forward')"
+                    >
+                      Allow
+                    </v-btn>
+                    <v-btn
+                      value="deny"
+                      size="small"
+                      :color="selectedMode === 'deny' ? 'error' : undefined"
+                      :disabled="modeSaving"
+                      @click="onModeChange('deny')"
+                    >
+                      Block
+                    </v-btn>
+                  </v-btn-toggle>
+                </div>
+
+                <!-- Blocklist opt-in/out: Included (blue) = enforced, Excluded (orange) = bypass -->
+                <div class="policy-group">
+                  <div class="policy-label text-caption text-medium-emphasis mb-1">
+                    Blocklist Enforced
+                  </div>
+                  <v-btn-toggle
+                    :model-value="excludedFromBlocklist"
+                    density="compact"
+                    variant="tonal"
+                    divided
+                    class="policy-toggle"
                   >
-                    Block
-                  </v-btn>
-                </v-btn-toggle>
+                    <v-btn
+                      :value="false"
+                      size="small"
+                      :color="excludedFromBlocklist === false ? 'info' : undefined"
+                      :disabled="blocklistSaving || excludedFromBlocklist === null"
+                      @click="onBlocklistChange(false)"
+                    >
+                      Included
+                    </v-btn>
+                    <v-btn
+                      :value="true"
+                      size="small"
+                      :color="excludedFromBlocklist === true ? 'orange' : undefined"
+                      :disabled="blocklistSaving || excludedFromBlocklist === null"
+                      @click="onBlocklistChange(true)"
+                    >
+                      Excluded
+                    </v-btn>
+                  </v-btn-toggle>
+                </div>
+
                 <v-btn
                   variant="tonal"
                   size="small"
@@ -232,6 +313,18 @@ watch(client, () => {
           @click:close="modeError = null"
         >
           {{ modeError }}
+        </v-alert>
+
+        <v-alert
+          v-if="blocklistError"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mt-3 mb-0"
+          closable
+          @click:close="blocklistError = null"
+        >
+          {{ blocklistError }}
         </v-alert>
 
         <v-alert
@@ -334,6 +427,12 @@ watch(client, () => {
 
 .client-policy {
   min-width: 150px;
+}
+
+/* Give the toggles and the action buttons one height so the row lines up cleanly. */
+.client-policy :deep(.v-btn),
+.client-policy :deep(.policy-toggle) {
+  height: 36px;
 }
 
 .policy-label {

@@ -164,6 +164,7 @@ watch(client, () => {
             <HostNameEditor :client="client" />
             <div class="text-subtitle-1 text-green">
               IP Address: {{ client }}
+              <span class="ms-4">MAC Address: {{ store.macFor(client) }}</span>
             </div>
 
             <!-- Compact client policy: Allow / Block -->
@@ -175,12 +176,14 @@ watch(client, () => {
                 <v-btn-toggle
                   :model-value="selectedMode"
                   density="compact"
+                  variant="tonal"
                   divided
                   class="policy-toggle"
                 >
                   <v-btn
                     value="forward"
                     size="small"
+                    :color="selectedMode === 'forward' ? 'success' : undefined"
                     :disabled="modeSaving"
                     @click="onModeChange('forward')"
                   >
@@ -189,6 +192,7 @@ watch(client, () => {
                   <v-btn
                     value="deny"
                     size="small"
+                    :color="selectedMode === 'deny' ? 'error' : undefined"
                     :disabled="modeSaving"
                     @click="onModeChange('deny')"
                   >

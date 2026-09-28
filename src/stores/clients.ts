@@ -15,6 +15,8 @@ export const useClientsStore = defineStore("clients", () => {
   const hostNames = ref<Record<string, string>>({});
   // Map of client IP -> icon key (only entries with an icon set).
   const hostIcons = ref<Record<string, string>>({});
+  // Map of client IP -> MAC address (only entries with one recorded).
+  const hostMacs = ref<Record<string, string>>({});
   // Per-client hourly new-domain counts feeding the client-list alert bars.
   const newDomainRows = ref<NewDomainStat[]>([]);
   const loading = ref(false);
@@ -31,13 +33,16 @@ export const useClientsStore = defineStore("clients", () => {
       clients.value = rosterFromHosts(hosts);
       const names: Record<string, string> = {};
       const icons: Record<string, string> = {};
+      const macs: Record<string, string> = {};
       for (const h of hosts) {
         const name = h.device_name?.trim();
         if (name) names[h.ip] = name;
         if (h.icon) icons[h.ip] = h.icon;
+        if (h.mac_address) macs[h.ip] = h.mac_address;
       }
       hostNames.value = names;
       hostIcons.value = icons;
+      hostMacs.value = macs;
       loaded.value = true;
     } catch (e) {
       error.value = apiErrorMessage(e);
@@ -85,6 +90,11 @@ export const useClientsStore = defineStore("clients", () => {
     return hostIcons.value[client] ?? null;
   }
 
+  // MAC address for a client, or null when none is recorded.
+  function macFor(client: string): string | null {
+    return hostMacs.value[client] ?? null;
+  }
+
   // Number of most-recent hourly buckets shown as alert bars per client.
   const NEW_DOMAIN_HOURS = 12;
 
@@ -126,6 +136,7 @@ export const useClientsStore = defineStore("clients", () => {
     rows,
     hostNames,
     hostIcons,
+    hostMacs,
     loading,
     error,
     loaded,
@@ -136,6 +147,7 @@ export const useClientsStore = defineStore("clients", () => {
     rowsFor,
     nameFor,
     iconFor,
+    macFor,
     newDomainsFor
   };
 });

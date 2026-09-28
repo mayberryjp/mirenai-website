@@ -115,6 +115,7 @@ export interface ClientModeState {
 export interface Host {
   id: number;
   ip: string;
+  mac_address: string | null; // read-only; auto-recorded like ip
   device_name: string | null;
   icon: string | null; // icon key (e.g. "TV"); null until set
   query_count: number; // read-only

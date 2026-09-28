@@ -50,6 +50,17 @@ function formatCount(n: number): string {
   return n.toLocaleString();
 }
 
+// Colour the device icon by recent new-domain volume (sum of the alert bars):
+// calm green when quiet, escalating to crimson as new domains pile up.
+function iconColor(client: string): string {
+  const total = store.newDomainsFor(client).reduce((sum, n) => sum + n, 0);
+  if (total === 0) return "#2EC4A0";
+  if (total <= 9) return "#FFD600";
+  if (total <= 24) return "#FF9800";
+  if (total <= 49) return "#F44336";
+  return "#B71C1C";
+}
+
 onMounted(() => {
   if (!store.loaded) void store.load();
 });
@@ -142,7 +153,7 @@ onMounted(() => {
                   <DeviceIcon
                     :icon="store.iconFor(c.client)"
                     :size="24"
-                    color="#64B5F6"
+                    :color="iconColor(c.client)"
                   />
                 </div>
 

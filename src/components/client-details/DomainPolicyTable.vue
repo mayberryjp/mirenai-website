@@ -33,6 +33,18 @@ const headers = [
   { title: "Override", key: "override", sortable: false }
 ];
 
+const search = ref("");
+
+// Client-side filter over this client's query rows, matching domain or query
+// type (every row shares the same client).
+const filteredRows = computed<QueryLog[]>(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return props.rows;
+  return props.rows.filter(
+    (r) => r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q)
+  );
+});
+
 const policies = ref<Policy[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -210,8 +222,19 @@ watch(
     rounded="lg"
     color="#090c10"
   >
-    <v-card-title class="text-h6 text-sm-h5 text-md-h4 policy-title d-flex align-center px-4 py-3">
-      Domain Queries &amp; Policy Override
+    <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
+      <span class="text-h6 text-sm-h5 text-md-h4 policy-title">Domain Queries &amp; Policy Override</span>
+      <v-spacer />
+      <v-text-field
+        v-model="search"
+        prepend-inner-icon="mdi-magnify"
+        placeholder="Filter domains"
+        density="compact"
+        variant="outlined"
+        hide-details
+        clearable
+        class="policy-search"
+      />
     </v-card-title>
     <v-divider />
 
@@ -229,7 +252,7 @@ watch(
 
     <v-data-table
       :headers="headers"
-      :items="rows"
+      :items="filteredRows"
       :loading="loading"
       density="compact"
       class="app-table"
@@ -306,6 +329,10 @@ watch(
 <style scoped>
 .policy-title {
   color: #b1b8c0;
+}
+
+.policy-search {
+  max-width: 260px;
 }
 
 .choice-select {

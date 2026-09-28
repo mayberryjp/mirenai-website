@@ -7,6 +7,7 @@ const props = defineProps<{ client: string }>();
 
 const hostId = ref<number | null>(null);
 const name = ref<string | null>(null);
+const deviceType = ref<string | null>(null);
 const editing = ref(false);
 const draft = ref("");
 const loading = ref(true);
@@ -14,6 +15,10 @@ const saving = ref(false);
 const error = ref<string | null>(null);
 
 const displayName = computed(() => name.value?.trim() || "UNKNOWN");
+// Append the device type (icon key, e.g. "IP_CAMERA") in parentheses when set.
+const heading = computed(() =>
+  deviceType.value ? `${displayName.value} (${deviceType.value})` : displayName.value
+);
 
 async function load(): Promise<void> {
   loading.value = true;
@@ -23,6 +28,7 @@ async function load(): Promise<void> {
     const host = await findHostByIp(props.client);
     hostId.value = host?.id ?? null;
     name.value = host?.device_name ?? null;
+    deviceType.value = host?.icon ?? null;
   } catch (e) {
     error.value = apiErrorMessage(e);
   } finally {
@@ -67,7 +73,7 @@ watch(() => props.client, load);
       class="d-flex align-center flex-wrap ga-1"
     >
       <h2 class="text-h5 text-sm-h4 custom-heading mb-0">
-        {{ displayName }}
+        {{ heading }}
       </h2>
       <v-btn
         icon="mdi-pencil"

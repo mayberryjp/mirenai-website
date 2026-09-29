@@ -100,7 +100,7 @@ async function loadRecentDomains(): Promise<void> {
   recentLoading.value = true;
   recentError.value = null;
   try {
-    recentDomains.value = await getRecentNewDomains(100);
+    recentDomains.value = await getRecentNewDomains(500);
   } catch (e) {
     recentError.value = apiErrorMessage(e);
     recentDomains.value = [];

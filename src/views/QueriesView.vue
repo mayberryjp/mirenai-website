@@ -2,9 +2,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useQueriesStore } from "@/stores/queries";
+import { useClientsStore } from "@/stores/clients";
 import AsyncState from "@/components/base/AsyncState.vue";
 
 const store = useQueriesStore();
+const clients = useClientsStore();
 const { items, total, loading, error, page } = storeToRefs(store);
 
 const headers = [
@@ -41,6 +43,8 @@ async function clear(): Promise<void> {
 
 onMounted(() => {
   void store.load();
+  // Device-name lookup for the Client column; best-effort, IP is the fallback.
+  if (!clients.loaded) void clients.load();
 });
 </script>
 
@@ -90,6 +94,9 @@ onMounted(() => {
           :items-per-page="store.pageSize"
           hide-default-footer
         >
+          <template #item.client="{ item }">
+            {{ clients.nameFor(item.client) }}
+          </template>
           <template #item.last_action="{ item }">
             {{ item.last_action ?? "—" }}
           </template>

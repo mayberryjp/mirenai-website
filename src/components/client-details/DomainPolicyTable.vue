@@ -7,6 +7,7 @@ import {
   updatePolicy
 } from "@/services/policies";
 import { apiErrorMessage } from "@/services/errors";
+import ActionFilter from "@/components/base/ActionFilter.vue";
 import type { ClientMode, Policy, PolicyAction, QueryLog } from "@/types/domain";
 
 const props = defineProps<{
@@ -34,15 +35,22 @@ const headers = [
 ];
 
 const search = ref("");
+const selectedActions = ref<PolicyAction[]>([]);
 
-// Client-side filter over this client's query rows, matching domain or query
-// type (every row shares the same client).
+// Client-side filter over this client's query rows: match the search text (domain
+// or query type) AND, when any action chips are selected, the effective policy
+// action shown in the Policy column.
 const filteredRows = computed<QueryLog[]>(() => {
   const q = search.value.trim().toLowerCase();
-  if (!q) return props.rows;
-  return props.rows.filter(
-    (r) => r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q)
-  );
+  const actions = selectedActions.value;
+  return props.rows.filter((r) => {
+    if (actions.length) {
+      const eff = effectiveAction(r.domain);
+      if (!eff || !actions.includes(eff as PolicyAction)) return false;
+    }
+    if (!q) return true;
+    return r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q);
+  });
 });
 
 const policies = ref<Policy[]>([]);
@@ -101,6 +109,12 @@ function actionColor(action: string | null): string {
 function effectiveLabel(domain: string): string {
   const p = policyFor(domain);
   return actionLabel(p ? p.action : props.clientMode);
+}
+
+// Effective action for a domain: its configured policy, else the inherited client mode.
+function effectiveAction(domain: string): ClientMode | null {
+  const p = policyFor(domain);
+  return p ? p.action : props.clientMode;
 }
 
 function effectiveColor(domain: string): string {
@@ -225,6 +239,7 @@ watch(
     <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 policy-title">Domain Queries &amp; Policy Override</span>
       <v-spacer />
+      <ActionFilter v-model="selectedActions" />
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"

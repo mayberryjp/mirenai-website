@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
 import { usePoliciesStore } from "@/stores/policies";
 import PolicyControl from "@/components/base/PolicyControl.vue";
-import type { RecentNewDomain } from "@/types/domain";
+import ActionFilter from "@/components/base/ActionFilter.vue";
+import type { PolicyAction, RecentNewDomain } from "@/types/domain";
 
 const props = withDefaults(
   defineProps<{
@@ -19,13 +20,17 @@ const clients = useClientsStore();
 const policies = usePoliciesStore();
 
 const search = ref("");
+const selectedActions = ref<PolicyAction[]>([]);
 
-// Client-side filter over the loaded rows, matching domain, client IP, or the
-// resolved device name.
+// Client-side filter over the loaded rows: match the search text (domain, client
+// IP, or resolved device name) AND, when any action chips are selected, the row's
+// last_action.
 const filteredRows = computed<RecentNewDomain[]>(() => {
   const q = (search.value ?? "").trim().toLowerCase();
-  if (!q) return props.rows;
+  const actions = selectedActions.value;
   return props.rows.filter((r) => {
+    if (actions.length && !(r.last_action && actions.includes(r.last_action))) return false;
+    if (!q) return true;
     const name = clients.nameFor(r.client).toLowerCase();
     return (
       r.domain.toLowerCase().includes(q) ||
@@ -97,6 +102,7 @@ onMounted(() => {
     <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 recent-domains-title">{{ title }}</span>
       <v-spacer />
+      <ActionFilter v-model="selectedActions" />
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"

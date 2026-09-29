@@ -3,11 +3,13 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import { useClientsStore } from "@/stores/clients";
+import { usePoliciesStore } from "@/stores/policies";
 import AsyncState from "@/components/base/AsyncState.vue";
 import DeviceIcon from "@/components/base/DeviceIcon.vue";
 import AlertBars from "@/components/base/AlertBars.vue";
 
 const store = useClientsStore();
+const policiesStore = usePoliciesStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -87,8 +89,16 @@ function iconColor(client: string): string {
   return "#B71C1C";
 }
 
+// A client's default policy is its "*" wildcard policy; action "deny" == Block
+// (the same mapping the detail page's Allow/Block toggle uses).
+function isClientBlocked(client: string): boolean {
+  return policiesStore.policyFor(client, "*")?.action === "deny";
+}
+
 onMounted(() => {
   if (!store.loaded) void store.load();
+  // Best-effort: the block overlay is supplementary, and the store traps errors.
+  if (!policiesStore.items.length) void policiesStore.load();
 });
 </script>
 
@@ -203,6 +213,7 @@ onMounted(() => {
                     :icon="store.iconFor(c.client)"
                     :size="24"
                     :color="iconColor(c.client)"
+                    :blocked="isClientBlocked(c.client)"
                   />
                 </div>
 

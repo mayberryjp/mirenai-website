@@ -24,12 +24,15 @@ const siteTotals = computed(() =>
   siteStats.value.reduce(
     (acc, s) => {
       acc.total += s.total;
+      acc.forwarded += s.forwarded;
       acc.cached += s.cached;
-      acc.blocked += s.blocked;
+      acc.overridden += s.overridden;
       acc.denied += s.denied;
+      acc.blocked += s.blocked;
+      acc.servfail += s.servfail;
       return acc;
     },
-    { total: 0, cached: 0, blocked: 0, denied: 0 }
+    { total: 0, forwarded: 0, cached: 0, overridden: 0, denied: 0, blocked: 0, servfail: 0 }
   )
 );
 
@@ -61,13 +64,20 @@ const stats = computed(() => [
   }
 ]);
 
-// Traffic totals moved into chips under the Site DNS Traffic header.
-const trafficChips = computed(() => [
-  { label: "Queries", value: siteTotals.value.total, color: "#2ec4a0" },
-  { label: "Cached", value: siteTotals.value.cached, color: "#4a90d9" },
-  { label: "Blocklist Denied", value: siteTotals.value.blocked, color: "#ff5a36" },
-  { label: "Policy Denied", value: siteTotals.value.denied, color: "#f5822a" }
-]);
+// One chip per chart series, each with its share of total queries.
+// Labels and colors mirror the Site DNS Traffic legend.
+const trafficChips = computed(() => {
+  const t = siteTotals.value;
+  const pct = (n: number): number => (t.total > 0 ? (n / t.total) * 100 : 0);
+  return [
+    { label: "Forwarded", value: t.forwarded, color: "#2ec4a0", percent: pct(t.forwarded) },
+    { label: "Cached", value: t.cached, color: "#7b61ff", percent: pct(t.cached) },
+    { label: "Spoofed", value: t.overridden, color: "#ffc93c", percent: pct(t.overridden) },
+    { label: "Policy Denied", value: t.denied, color: "#f5822a", percent: pct(t.denied) },
+    { label: "Blocklist Denied", value: t.blocked, color: "#ff5a36", percent: pct(t.blocked) },
+    { label: "Servfail", value: t.servfail, color: "#9aa4b2", percent: pct(t.servfail) }
+  ];
+});
 
 function fmt(n: number): string {
   return n.toLocaleString();

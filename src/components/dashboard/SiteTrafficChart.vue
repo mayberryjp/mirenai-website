@@ -8,7 +8,7 @@ const props = withDefaults(
     loading: boolean;
     error: string | null;
     title?: string;
-    totals?: { label: string; value: number; color?: string }[];
+    totals?: { label: string; value: number; color?: string; percent?: number }[];
   }>(),
   { title: "Site DNS Traffic", totals: () => [] }
 );
@@ -118,6 +118,7 @@ function fmt(n: number): string {
         :color="chip.color"
       >
         {{ chip.label }}: {{ fmt(chip.value) }}
+        <span v-if="chip.percent !== undefined">({{ chip.percent.toFixed(1) }}%)</span>
       </v-chip>
     </div>
 

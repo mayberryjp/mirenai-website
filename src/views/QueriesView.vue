@@ -12,11 +12,23 @@ const { items, total, loading, error, page } = storeToRefs(store);
 const headers = [
   { title: "Client", key: "client" },
   { title: "Domain", key: "domain" },
+  { title: "Blocklist", key: "blocked", sortable: false },
   { title: "Type", key: "qtype" },
   { title: "Count", key: "count" },
   { title: "Last action", key: "last_action" },
   { title: "Last seen", key: "last_seen" }
 ];
+
+// Blocklist membership of the queried domain (API returns a simple boolean).
+function blockedLabel(on: boolean | undefined | null): string {
+  if (on === true) return "Yes";
+  if (on === false) return "No";
+  return "—";
+}
+
+function blockedColor(on: boolean | undefined | null): string {
+  return on ? "burgundy" : "grey";
+}
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / store.pageSize)));
 
@@ -96,6 +108,15 @@ onMounted(() => {
         >
           <template #item.client="{ item }">
             {{ clients.nameFor(item.client) }}
+          </template>
+          <template #item.blocked="{ item }">
+            <v-chip
+              size="small"
+              variant="tonal"
+              :color="blockedColor(item.blocked)"
+            >
+              {{ blockedLabel(item.blocked) }}
+            </v-chip>
           </template>
           <template #item.last_action="{ item }">
             {{ item.last_action ?? "—" }}

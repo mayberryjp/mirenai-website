@@ -4,7 +4,9 @@ import type {
   Blocklist,
   BlocklistCreate,
   BlocklistList,
+  BlocklistMatch,
   BlocklistResponse,
+  BlocklistSearchResponse,
   BlocklistUpdate,
   DomainList,
   Page
@@ -49,4 +51,16 @@ export async function listBlocklistDomains(
 export async function refreshBlocklist(id: number): Promise<Blocklist> {
   const res = await api.post<BlocklistResponse>(`/blocklists/${id}/refresh`);
   return res.data.blocklist;
+}
+
+// Search every blocklist (enabled or not) for stored domains containing `q`
+// (case-insensitive substring); returns each match with the blocklist it's on.
+export async function searchBlocklistDomains(
+  q: string,
+  limit = 100
+): Promise<Page<BlocklistMatch>> {
+  const res = await api.get<BlocklistSearchResponse>("/blocklists/search", {
+    params: { q, limit }
+  });
+  return { items: res.data.matches, total: res.data.total };
 }

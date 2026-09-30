@@ -2,9 +2,12 @@
 import { onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useBlocklistsStore } from "@/stores/blocklists";
+import { searchBlocklistDomains } from "@/services/blocklists";
+import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { Blocklist, BlocklistCreate } from "@/types/domain";
+import BlocklistTrafficChart from "@/components/dashboard/BlocklistTrafficChart.vue";
+import type { Blocklist, BlocklistCreate, BlocklistMatch, SiteHourlyStat } from "@/types/domain";
 
 const store = useBlocklistsStore();
 const { items, loading, error, refreshingId } = storeToRefs(store);
@@ -138,13 +141,135 @@ async function remove(): Promise<void> {
   }
 }
 
+// Domain lookup: "is this domain on a blocklist, and which one?" (GET /blocklists/lookup).
+const lookupQuery = ref("");
+const lookupResults = ref<BlocklistMatch[]>([]);
+const lookupLoading = ref(false);
+const lookupError = ref<string | null>(null);
+const lookupSearched = ref(false);
+
+async function runLookup(): Promise<void> {
+  const q = lookupQuery.value.trim();
+  if (!q) return;
+  lookupLoading.value = true;
+  lookupError.value = null;
+  try {
+    const page = await searchBlocklistDomains(q, 100);
+    lookupResults.value = page.items;
+    lookupSearched.value = true;
+  } catch (e) {
+    lookupError.value = apiErrorMessage(e);
+    lookupResults.value = [];
+    lookupSearched.value = false;
+  } finally {
+    lookupLoading.value = false;
+  }
+}
+
+// Last 100 hours of blocklist-denied traffic for the bottom chart (GET /stats/site).
+const siteStats = ref<SiteHourlyStat[]>([]);
+const siteLoading = ref(true);
+const siteError = ref<string | null>(null);
+
+async function loadSiteStats(): Promise<void> {
+  siteLoading.value = true;
+  siteError.value = null;
+  try {
+    siteStats.value = await getSiteStats(100);
+  } catch (e) {
+    siteError.value = apiErrorMessage(e);
+    siteStats.value = [];
+  } finally {
+    siteLoading.value = false;
+  }
+}
+
 onMounted(() => {
   void store.load();
+  void loadSiteStats();
 });
 </script>
 
 <template>
   <div>
+    <!-- Domain lookup: which blocklist (if any) contains a domain -->
+    <v-sheet
+      rounded="lg"
+      color="#090c10"
+      class="pa-4 mb-4"
+    >
+      <div class="lookup-heading mb-1">
+        Blocklist lookup
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-3">
+        Type a domain (or part of one) to check whether it appears on any blocklist.
+      </div>
+      <div class="d-flex ga-2 align-center">
+        <v-text-field
+          v-model="lookupQuery"
+          label="Domain or partial domain"
+          prepend-inner-icon="mdi-magnify"
+          density="compact"
+          variant="outlined"
+          hide-details
+          :loading="lookupLoading"
+          @keyup.enter="runLookup"
+        />
+        <v-btn
+          color="primary"
+          :loading="lookupLoading"
+          :disabled="!lookupQuery.trim()"
+          @click="runLookup"
+        >
+          Search
+        </v-btn>
+      </div>
+
+      <v-alert
+        v-if="lookupError"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mt-3"
+      >
+        {{ lookupError }}
+      </v-alert>
+
+      <div
+        v-else-if="lookupSearched && lookupResults.length === 0"
+        class="d-flex align-center ga-2 mt-3 text-success"
+      >
+        <v-icon size="18">
+          mdi-check-circle
+        </v-icon>
+        <span>Not found on any blocklist.</span>
+      </div>
+
+      <div
+        v-else-if="lookupResults.length"
+        class="lookup-results mt-3"
+      >
+        <div class="text-caption text-medium-emphasis mb-2">
+          {{ lookupResults.length }} match{{ lookupResults.length === 1 ? "" : "es" }}
+        </div>
+        <div
+          v-for="m in lookupResults"
+          :key="`${m.blocklist_id}:${m.domain}`"
+          class="d-flex align-center ga-2 py-1"
+        >
+          <v-icon
+            size="16"
+            color="error"
+          >
+            mdi-cancel
+          </v-icon>
+          <span class="lookup-domain">{{ m.domain }}</span>
+          <span class="text-medium-emphasis">on</span>
+          <span class="lookup-source">{{ m.blocklist_name ?? `blocklist #${m.blocklist_id}` }}</span>
+        </div>
+      </div>
+    </v-sheet>
+
     <div class="d-flex align-center mb-4 ga-3">
       <div class="text-body-2 text-medium-emphasis">
         Domain blocklists are downloaded and refreshed on a schedule.
@@ -186,6 +311,8 @@ onMounted(() => {
           density="compact"
           class="app-table"
           mobile-breakpoint="md"
+          :items-per-page="-1"
+          hide-default-footer
         >
           <template #item.url="{ item }">
             <div class="d-flex align-center">
@@ -251,6 +378,13 @@ onMounted(() => {
         </v-data-table>
       </v-sheet>
     </AsyncState>
+
+    <BlocklistTrafficChart
+      :stats="siteStats"
+      :loading="siteLoading"
+      :error="siteError"
+      class="mt-4"
+    />
 
     <v-dialog
       v-model="dialog"
@@ -340,6 +474,26 @@ onMounted(() => {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.85rem;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lookup-heading {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #b1b8c0;
+}
+
+.lookup-domain {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: #e6e9ee;
+  overflow-wrap: anywhere;
+}
+
+.lookup-source {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: #8b949e;
   overflow-wrap: anywhere;
 }
 </style>

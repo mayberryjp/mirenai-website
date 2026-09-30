@@ -29,6 +29,7 @@ const headers = [
   { title: "Domain", key: "domain" },
   { title: "Type", key: "qtype" },
   { title: "Count", key: "count" },
+  { title: "Blocklist", key: "blocked", sortable: false },
   { title: "Policy", key: "policy", sortable: false },
   { title: "Last Seen", key: "last_seen" },
   { title: "Override", key: "override", sortable: false }
@@ -104,6 +105,17 @@ function actionColor(action: string | null): string {
     default:
       return "grey"; // Allow / Default / none
   }
+}
+
+// Blocklist membership of the queried domain (API returns a simple boolean).
+function blockedLabel(on: boolean | undefined | null): string {
+  if (on === true) return "Yes";
+  if (on === false) return "No";
+  return "—";
+}
+
+function blockedColor(on: boolean | undefined | null): string {
+  return on ? "burgundy" : "grey";
 }
 
 function effectiveLabel(domain: string): string {
@@ -274,6 +286,16 @@ watch(
       mobile-breakpoint="md"
       :items-per-page="25"
     >
+      <template #item.blocked="{ item }">
+        <v-chip
+          size="small"
+          variant="tonal"
+          :color="blockedColor(item.blocked)"
+        >
+          {{ blockedLabel(item.blocked) }}
+        </v-chip>
+      </template>
+
       <template #item.count="{ item }">
         {{ item.count.toLocaleString() }}
       </template>

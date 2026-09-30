@@ -76,6 +76,13 @@ export interface BlocklistCreate {
 }
 export type BlocklistUpdate = Partial<BlocklistCreate>;
 
+// A domain matched by the blocklist search, plus which blocklist contains it.
+export interface BlocklistMatch {
+  domain: string;
+  blocklist_id: number;
+  blocklist_name: string | null; // null only if the config row is gone
+}
+
 // ---- Query log ----
 export interface QueryLog {
   id: number;
@@ -84,6 +91,7 @@ export interface QueryLog {
   qtype: string;
   count: number;
   last_action: PolicyAction | null;
+  blocked?: boolean; // true = domain is on a blocklist
   first_seen: string;
   last_seen: string;
 }
@@ -163,6 +171,7 @@ export interface RecentNewDomain {
   domain: string;
   first_seen: string; // ISO, container-local wall-clock (no offset)
   last_action: PolicyAction | null; // action taken (forward=Allow, deny=Block, …); null = default/none
+  blocked?: boolean; // true = domain is on a blocklist
 }
 
 // Current resolver runtime counters for the dashboard stat banner. Served by GET /stats/runtime.
@@ -210,6 +219,8 @@ export type UpstreamCheckResponse = OkEnvelope & { rtt_ms: number };
 
 export type BlocklistResponse = OkEnvelope & { blocklist: Blocklist };
 export type BlocklistList = OkEnvelope & { blocklists: Blocklist[]; total: number };
+// GET /blocklists/search?q=<substring> — stored domains containing q, each annotated with its blocklist.
+export type BlocklistSearchResponse = OkEnvelope & { matches: BlocklistMatch[]; total: number };
 
 export type HostResponse = OkEnvelope & { host: Host };
 export type HostList = OkEnvelope & { hosts: Host[]; total: number };

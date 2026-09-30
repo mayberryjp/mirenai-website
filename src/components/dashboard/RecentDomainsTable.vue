@@ -43,6 +43,7 @@ const filteredRows = computed<RecentNewDomain[]>(() => {
 const headers = [
   { title: "Client", key: "client" },
   { title: "Domain", key: "domain" },
+  { title: "Blocklist", key: "blocked", sortable: false },
   { title: "Action", key: "last_action" },
   { title: "Policy", key: "policy", sortable: false },
   { title: "First Seen", key: "first_seen" }
@@ -77,6 +78,17 @@ function actionColor(action: string | null): string {
     default:
       return "grey"; // Allow / Default / none
   }
+}
+
+// Blocklist membership of the queried domain (API returns a simple boolean).
+function blockedLabel(on: boolean | undefined | null): string {
+  if (on === true) return "Yes";
+  if (on === false) return "No";
+  return "—";
+}
+
+function blockedColor(on: boolean | undefined | null): string {
+  return on ? "burgundy" : "grey";
 }
 
 // Datetimes arrive without an offset (container-local); render in that same local
@@ -140,6 +152,16 @@ onMounted(() => {
     >
       <template #item.client="{ item }">
         {{ clients.nameFor(item.client) }}
+      </template>
+
+      <template #item.blocked="{ item }">
+        <v-chip
+          size="small"
+          variant="tonal"
+          :color="blockedColor(item.blocked)"
+        >
+          {{ blockedLabel(item.blocked) }}
+        </v-chip>
       </template>
 
       <template #item.last_action="{ item }">

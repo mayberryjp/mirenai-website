@@ -203,33 +203,24 @@ const overrideHeaders = [
 // Shown after a mutation: overrides only apply once each blocklist is reloaded.
 const overrideReloadNote = ref(false);
 
-const overrideDialog = ref(false);
-const overrideDomain = ref("");
-const overrideFormError = ref<string | null>(null);
-const overrideSaving = ref(false);
+// Domains already allowlisted — lets the "Add to overrides" buttons reflect state.
+const overrideDomainSet = computed(() => new Set(overrides.value.map((o) => o.domain)));
 
-function openAddOverride(): void {
-  overrideDomain.value = "";
-  overrideFormError.value = null;
-  overrideDialog.value = true;
-}
+// Overrides are added from the lookup results or top-blocked table (one in flight).
+const addingOverride = ref<string | null>(null);
+const overrideActionError = ref<string | null>(null);
 
-async function submitOverride(): Promise<void> {
-  const domain = overrideDomain.value.trim();
-  if (!domain) {
-    overrideFormError.value = "Domain is required.";
-    return;
-  }
-  overrideSaving.value = true;
-  overrideFormError.value = null;
+async function addToOverrides(domain: string): Promise<void> {
+  if (!domain || addingOverride.value || overrideDomainSet.value.has(domain)) return;
+  addingOverride.value = domain;
+  overrideActionError.value = null;
   try {
     await store.addOverride(domain);
-    overrideDialog.value = false;
     overrideReloadNote.value = true;
   } catch (e) {
-    overrideFormError.value = apiErrorMessage(e);
+    overrideActionError.value = apiErrorMessage(e);
   } finally {
-    overrideSaving.value = false;
+    addingOverride.value = null;
   }
 }
 
@@ -258,7 +249,8 @@ const topBlockedHeaders = [
   { title: "Count", key: "count" },
   { title: "Clients", key: "clients", sortable: false },
   { title: "Blocklists", key: "blocklists", sortable: false },
-  { title: "Last seen", key: "last_seen" }
+  { title: "Last seen", key: "last_seen" },
+  { title: "", key: "actions", sortable: false, align: "end" as const }
 ];
 
 const topBlocked = ref<TopBlockedDomain[]>([]);
@@ -367,6 +359,28 @@ onMounted(() => {
           <span class="lookup-domain">{{ m.domain }}</span>
           <span class="text-medium-emphasis">on</span>
           <span class="lookup-source">{{ m.blocklist_name ?? `blocklist #${m.blocklist_id}` }}</span>
+          <v-spacer />
+          <v-btn
+            v-if="overrideDomainSet.has(m.domain)"
+            size="x-small"
+            variant="tonal"
+            color="success"
+            prepend-icon="mdi-check"
+            disabled
+          >
+            Overridden
+          </v-btn>
+          <v-btn
+            v-else
+            size="x-small"
+            variant="tonal"
+            color="primary"
+            prepend-icon="mdi-plus"
+            :loading="addingOverride === m.domain"
+            @click="addToOverrides(m.domain)"
+          >
+            Add to overrides
+          </v-btn>
         </div>
       </div>
     </v-sheet>
@@ -481,24 +495,26 @@ onMounted(() => {
     </AsyncState>
 
     <!-- Overrides (allowlist): domains stripped from blocklists at download time -->
-    <div class="d-flex align-center mt-8 mb-2">
-      <div>
-        <h3 class="text-subtitle-1 font-weight-medium">
-          Blocklist overrides
-        </h3>
-        <p class="text-caption text-medium-emphasis mb-0">
-          Domains listed here are excluded (allowlisted) from every blocklist.
-        </p>
-      </div>
-      <v-spacer />
-      <v-btn
-        color="primary"
-        prepend-icon="mdi-plus"
-        @click="openAddOverride"
-      >
-        Add override
-      </v-btn>
+    <div class="mt-8 mb-2">
+      <h3 class="text-subtitle-1 font-weight-medium">
+        Blocklist overrides
+      </h3>
+      <p class="text-caption text-medium-emphasis mb-0">
+        Domains listed here are excluded (allowlisted) from every blocklist. Add one from the
+        blocklist lookup above or the top blocked domains below.
+      </p>
     </div>
+
+    <v-alert
+      v-if="overrideActionError"
+      type="error"
+      variant="tonal"
+      class="mb-4"
+      closable
+      @click:close="overrideActionError = null"
+    >
+      {{ overrideActionError }}
+    </v-alert>
 
     <v-alert
       v-if="overrideReloadNote"
@@ -571,7 +587,18 @@ onMounted(() => {
             {{ item.count.toLocaleString() }}
           </template>
           <template #item.clients="{ item }">
-            {{ item.clients.length }}
+            <template v-if="item.clients.length">
+              <v-chip
+                v-for="c in item.clients"
+                :key="c.client"
+                size="small"
+                variant="tonal"
+                class="mr-1 mb-1"
+              >
+                {{ c.client }} ({{ c.count.toLocaleString() }})
+              </v-chip>
+            </template>
+            <span v-else>—</span>
           </template>
           <template #item.blocklists="{ item }">
             <template v-if="item.blocklists.length">
@@ -586,6 +613,29 @@ onMounted(() => {
               </v-chip>
             </template>
             <span v-else>—</span>
+          </template>
+          <template #item.actions="{ item }">
+            <v-btn
+              v-if="overrideDomainSet.has(item.domain)"
+              size="small"
+              variant="tonal"
+              color="success"
+              prepend-icon="mdi-check"
+              disabled
+            >
+              Overridden
+            </v-btn>
+            <v-btn
+              v-else
+              size="small"
+              variant="tonal"
+              color="primary"
+              prepend-icon="mdi-plus"
+              :loading="addingOverride === item.domain"
+              @click="addToOverrides(item.domain)"
+            >
+              Add to overrides
+            </v-btn>
           </template>
         </v-data-table>
         <div
@@ -685,50 +735,6 @@ onMounted(() => {
             @click="remove"
           >
             Delete
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog
-      v-model="overrideDialog"
-      max-width="480"
-    >
-      <v-card>
-        <v-card-title>Add blocklist override</v-card-title>
-        <v-card-text>
-          <v-alert
-            v-if="overrideFormError"
-            type="error"
-            variant="tonal"
-            class="mb-4"
-          >
-            {{ overrideFormError }}
-          </v-alert>
-          <v-text-field
-            v-model="overrideDomain"
-            label="Domain"
-            placeholder="aria.microsoft.com"
-            @keyup.enter="submitOverride"
-          />
-          <p class="text-caption text-medium-emphasis">
-            The domain is removed from blocklists the next time they are downloaded or refreshed.
-          </p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn
-            variant="text"
-            @click="overrideDialog = false"
-          >
-            Cancel
-          </v-btn>
-          <v-btn
-            color="primary"
-            :loading="overrideSaving"
-            @click="submitOverride"
-          >
-            Add
           </v-btn>
         </v-card-actions>
       </v-card>

@@ -2,9 +2,11 @@
 import { onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useTrustedNetworksStore } from "@/stores/trustedNetworks";
+import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { TrustedNetwork, TrustedNetworkCreate } from "@/types/domain";
+import ForeignTrafficChart from "@/components/dashboard/ForeignTrafficChart.vue";
+import type { SiteHourlyStat, TrustedNetwork, TrustedNetworkCreate } from "@/types/domain";
 
 const store = useTrustedNetworksStore();
 const { items, loading, error } = storeToRefs(store);
@@ -72,8 +74,27 @@ async function remove(): Promise<void> {
   }
 }
 
+// Last 100 hours of foreign-network traffic for the bottom chart (GET /stats/site).
+const siteStats = ref<SiteHourlyStat[]>([]);
+const siteLoading = ref(true);
+const siteError = ref<string | null>(null);
+
+async function loadSiteStats(): Promise<void> {
+  siteLoading.value = true;
+  siteError.value = null;
+  try {
+    siteStats.value = await getSiteStats(100);
+  } catch (e) {
+    siteError.value = apiErrorMessage(e);
+    siteStats.value = [];
+  } finally {
+    siteLoading.value = false;
+  }
+}
+
 onMounted(() => {
   void store.load();
+  void loadSiteStats();
 });
 </script>
 
@@ -126,6 +147,13 @@ onMounted(() => {
         </v-data-table>
       </v-card>
     </AsyncState>
+
+    <ForeignTrafficChart
+      :stats="siteStats"
+      :loading="siteLoading"
+      :error="siteError"
+      class="mt-4"
+    />
 
     <v-dialog
       v-model="dialog"

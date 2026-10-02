@@ -30,9 +30,10 @@ const siteTotals = computed(() =>
       acc.denied += s.denied;
       acc.blocked += s.blocked;
       acc.servfail += s.servfail;
+      acc.foreign += s.foreign;
       return acc;
     },
-    { total: 0, forwarded: 0, cached: 0, overridden: 0, denied: 0, blocked: 0, servfail: 0 }
+    { total: 0, forwarded: 0, cached: 0, overridden: 0, denied: 0, blocked: 0, servfail: 0, foreign: 0 }
   )
 );
 
@@ -75,7 +76,8 @@ const trafficChips = computed(() => {
     { label: "Spoofed", value: t.overridden, color: "#ffc93c", percent: pct(t.overridden) },
     { label: "Policy Denied", value: t.denied, color: "#f5822a", percent: pct(t.denied) },
     { label: "Blocklist Denied", value: t.blocked, color: "#ff5a36", percent: pct(t.blocked) },
-    { label: "Servfail", value: t.servfail, color: "#9aa4b2", percent: pct(t.servfail) }
+    { label: "Servfail", value: t.servfail, color: "#9aa4b2", percent: pct(t.servfail) },
+    { label: "Foreign Network", value: t.foreign, color: "#4a90d9", percent: pct(t.foreign) }
   ];
 });
 
@@ -160,6 +162,7 @@ onMounted(() => {
       :loading="siteLoading"
       :error="siteError"
       :totals="trafficChips"
+      show-foreign
     />
 
     <!-- Recently first-seen client/domain pairs -->

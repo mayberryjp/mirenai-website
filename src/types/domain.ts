@@ -196,6 +196,7 @@ export interface HourlyResultStat {
   denied: number;
   blocked: number;
   servfail: number;
+  foreign: number; // queries sourced from outside the trusted networks
 }
 
 // Site-wide hourly totals across all clients. Served by GET /stats/site.

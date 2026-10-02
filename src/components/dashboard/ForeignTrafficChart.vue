@@ -8,11 +8,8 @@ const props = withDefaults(
     loading: boolean;
     error: string | null;
     title?: string;
-    totals?: { label: string; value: number; color?: string; percent?: number }[];
-    // Foreign-network is a site-wide metric only — off for per-client charts.
-    showForeign?: boolean;
   }>(),
-  { title: "Site DNS Traffic", totals: () => [], showForeign: false }
+  { title: "Foreign Network Traffic" }
 );
 
 // Oldest → newest, capped at the last 100 hourly buckets.
@@ -23,30 +20,20 @@ const hasData = computed(() => recent.value.length > 0);
 
 const categories = computed(() => recent.value.map((s) => formatHour(s.hour_start)));
 
-const series = computed(() => {
-  const lines = [
-    { name: "Forwarded", type: "line", data: recent.value.map((s) => s.forwarded) },
-    { name: "Cached", type: "line", data: recent.value.map((s) => s.cached) },
-    { name: "Spoofed", type: "line", data: recent.value.map((s) => s.overridden) },
-    { name: "Policy Denied", type: "line", data: recent.value.map((s) => s.denied) },
-    { name: "Blocklist Denied", type: "line", data: recent.value.map((s) => s.blocked) },
-    { name: "Servfail", type: "line", data: recent.value.map((s) => s.servfail) }
-  ];
-  if (props.showForeign) {
-    lines.push({ name: "Foreign Network", type: "line", data: recent.value.map((s) => s.foreign) });
-  }
-  return lines;
-});
+// Only the foreign-network count per hour (queries from outside the trusted networks).
+const series = computed(() => [
+  { name: "Foreign Network", type: "line", data: recent.value.map((s) => s.foreign) }
+]);
 
 const chartOptions = computed(() => ({
   chart: {
-    id: "site-traffic-chart",
+    id: "foreign-traffic-chart",
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
-  colors: ["#2ec4a0", "#7b61ff", "#ffc93c", "#f5822a", "#ff5a36", "#9aa4b2", "#4a90d9"],
+  colors: ["#4a90d9"],
   fill: { opacity: 1 },
   stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },
@@ -66,7 +53,7 @@ const chartOptions = computed(() => ({
     axisTicks: { color: "#333" }
   },
   yaxis: {
-    title: { text: "Queries / hour", style: { color: "#4a90d9" } },
+    title: { text: "Foreign queries / hour", style: { color: "#4a90d9" } },
     labels: {
       style: { colors: "#b1b8c0" },
       formatter: (val: number) => Math.round(val).toLocaleString()
@@ -96,39 +83,18 @@ function formatHour(iso: string): string {
   const pad = (n: number): string => String(n).padStart(2, "0");
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:00`;
 }
-
-function fmt(n: number): string {
-  return n.toLocaleString();
-}
 </script>
 
 <template>
   <v-card
     color="surface-card"
-    class="site-traffic-card"
+    class="foreign-traffic-card"
   >
     <v-card-title class="d-flex align-center px-4 py-3">
-      <span class="text-h6 text-sm-h5 site-traffic-title">{{ title }}</span>
+      <span class="text-h6 text-sm-h5 foreign-traffic-title">{{ title }}</span>
       <v-spacer />
       <span class="text-caption text-grey">Last 100 hours</span>
     </v-card-title>
-
-    <div
-      v-if="totals.length"
-      class="d-flex flex-wrap align-center ga-2 px-4 pb-3"
-    >
-      <span class="text-caption text-grey">Last 100h:</span>
-      <v-chip
-        v-for="chip in totals"
-        :key="chip.label"
-        size="small"
-        variant="tonal"
-        :color="chip.color"
-      >
-        {{ chip.label }}: {{ fmt(chip.value) }}
-        <span v-if="chip.percent !== undefined">({{ chip.percent.toFixed(1) }}%)</span>
-      </v-chip>
-    </div>
 
     <v-divider />
 
@@ -170,7 +136,7 @@ function fmt(n: number): string {
         mdi-chart-line
       </v-icon>
       <div class="text-grey">
-        No query history available for the last 100 hours.
+        No foreign network activity in the last 100 hours.
       </div>
     </v-card-text>
 
@@ -189,11 +155,11 @@ function fmt(n: number): string {
 </template>
 
 <style scoped>
-.site-traffic-card {
+.foreign-traffic-card {
   overflow: hidden;
 }
 
-.site-traffic-title {
+.foreign-traffic-title {
   font-family: var(--app-font-family);
   color: #ffffff;
 }

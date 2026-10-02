@@ -1,45 +1,61 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ClientHourlyStat } from "@/types/domain";
+import type { UpstreamRttStat } from "@/types/domain";
 
-const props = defineProps<{
-  history: ClientHourlyStat[];
-  loading: boolean;
-  error: string | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    stats: UpstreamRttStat[];
+    loading: boolean;
+    error: string | null;
+    title?: string;
+  }>(),
+  { title: "Upstream RTT" }
+);
 
-// Oldest → newest, capped at the last 100 hourly buckets.
+// Oldest → newest across the window.
 const recent = computed(() =>
-  [...props.history].sort((a, b) => a.hour.localeCompare(b.hour)).slice(-100)
+  [...props.stats].sort((a, b) => a.hour_start.localeCompare(b.hour_start))
 );
 const hasData = computed(() => recent.value.length > 0);
 
-const categories = computed(() => recent.value.map((s) => formatHour(s.hour)));
+// Shared hour axis (oldest → newest) and the set of upstream addresses.
+const hourAxis = computed(() => [...new Set(recent.value.map((s) => s.hour_start))].sort());
+const addresses = computed(() => [...new Set(recent.value.map((s) => s.address))]);
 
-const series = computed(() => [
-  { name: "Queries", type: "area", data: recent.value.map((s) => s.queries) },
-  { name: "Blocked", type: "line", data: recent.value.map((s) => s.blocked) }
-]);
+const categories = computed(() => hourAxis.value.map((h) => formatHour(h)));
+
+// avg_ms keyed by "hour|address" so every line has a point at every hour (null = no samples).
+const avgByKey = computed(() => {
+  const map = new Map<string, number | null>();
+  for (const s of props.stats) map.set(`${s.hour_start}|${s.address}`, s.avg_ms);
+  return map;
+});
+
+// One line per upstream address; null gaps where the upstream had no samples.
+const series = computed(() =>
+  addresses.value.map((addr) => ({
+    name: addr,
+    type: "line",
+    data: hourAxis.value.map((h) => avgByKey.value.get(`${h}|${addr}`) ?? null)
+  }))
+);
 
 const chartOptions = computed(() => ({
   chart: {
-    id: "client-queries-chart",
+    id: "upstream-rtt-chart",
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
-  colors: ["#4a90d9", "#ff5a36"],
-  fill: { opacity: [0.25, 1] },
-  stroke: { curve: "smooth", width: [2, 2] },
+  colors: ["#2ec4a0", "#7b61ff", "#ffc93c", "#f5822a", "#ff5a36", "#9aa4b2"],
+  fill: { opacity: 1 },
+  stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
     shared: true,
-    y: [
-      { formatter: (val: number) => `${Math.round(val).toLocaleString()} queries` },
-      { formatter: (val: number) => `${Math.round(val).toLocaleString()} blocked` }
-    ]
+    y: { formatter: (val: number | null) => (val == null ? "—" : `${val.toFixed(1)} ms`) }
   },
   grid: {
     borderColor: "#333",
@@ -52,7 +68,7 @@ const chartOptions = computed(() => ({
     axisTicks: { color: "#333" }
   },
   yaxis: {
-    title: { text: "Queries / hour", style: { color: "#4a90d9" } },
+    title: { text: "RTT (ms)", style: { color: "#4a90d9" } },
     labels: {
       style: { colors: "#b1b8c0" },
       formatter: (val: number) => Math.round(val).toLocaleString()
@@ -87,10 +103,10 @@ function formatHour(iso: string): string {
 <template>
   <v-card
     color="surface-card"
-    class="queries-chart-card"
+    class="rtt-card"
   >
     <v-card-title class="d-flex align-center px-4 py-3">
-      <span class="text-h6 text-sm-h5 queries-chart-title">DNS Queries</span>
+      <span class="text-h6 text-sm-h5 rtt-title">{{ title }}</span>
       <v-spacer />
       <span class="text-caption text-grey">Last 100 hours</span>
     </v-card-title>
@@ -134,7 +150,7 @@ function formatHour(iso: string): string {
         mdi-chart-line
       </v-icon>
       <div class="text-grey">
-        No query history available for the last 100 hours.
+        No upstream RTT history available for the last 100 hours.
       </div>
     </v-card-text>
 
@@ -153,11 +169,11 @@ function formatHour(iso: string): string {
 </template>
 
 <style scoped>
-.queries-chart-card {
+.rtt-card {
   overflow: hidden;
 }
 
-.queries-chart-title {
+.rtt-title {
   font-family: var(--app-font-family);
   color: #ffffff;
 }

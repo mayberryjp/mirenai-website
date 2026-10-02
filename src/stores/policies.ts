@@ -45,5 +45,11 @@ export const usePoliciesStore = defineStore("policies", () => {
     await load();
   }
 
-  return { items, total, loading, error, load, create, update, remove };
+  // Exact (client, domain) policy, if one is configured. Used by the inline
+  // PolicyControl in the query log and recent-domains tables.
+  function policyFor(client: string, domain: string): Policy | undefined {
+    return items.value.find((p) => p.client === client && p.domain === domain);
+  }
+
+  return { items, total, loading, error, load, create, update, remove, policyFor };
 });

@@ -2,35 +2,80 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useBlocklistsStore } from "@/stores/blocklists";
-import { listBlocklistDomains } from "@/services/blocklists";
+import { searchBlocklistDomains } from "@/services/blocklists";
 import { listTopBlocked } from "@/services/queries";
+import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { Blocklist, BlocklistCreate, BlocklistOverride, TopBlockedDomain } from "@/types/domain";
+import BlocklistTrafficChart from "@/components/dashboard/BlocklistTrafficChart.vue";
+import type {
+  Blocklist,
+  BlocklistCreate,
+  BlocklistMatch,
+  BlocklistOverride,
+  SiteHourlyStat,
+  TopBlockedDomain
+} from "@/types/domain";
 
 const store = useBlocklistsStore();
 const { items, loading, error, refreshingId, overrides, overridesLoading, overridesError } =
   storeToRefs(store);
 
 const headers = [
-  { title: "Name", key: "name" },
-  { title: "URL", key: "url" },
-  { title: "Interval (h)", key: "update_interval_hours" },
+  { title: "Source", key: "url" },
+  { title: "Interval", key: "update_interval_hours" },
   { title: "Domains", key: "domain_count" },
-  { title: "Last status", key: "last_status" },
-  { title: "Enabled", key: "enabled" },
-  { title: "", key: "actions", sortable: false, align: "end" as const }
+  { title: "Last updated", key: "last_downloaded_at" },
+  { title: "Status", key: "last_status" },
+  { title: "Actions", key: "actions", sortable: false, align: "end" as const }
 ];
 
+// Combined enabled + status: a disabled list reads "disabled"; otherwise the
+// last run outcome (OK / failed / never run).
+function statusColor(item: Blocklist): string {
+  if (!item.enabled) return "grey";
+  const status = item.last_status;
+  if (!status) return "grey";
+  const s = status.toLowerCase();
+  if (s.includes("ok") || s.includes("success")) return "success";
+  if (s.includes("fail") || s.includes("error")) return "error";
+  return "info";
+}
+
+function statusIcon(item: Blocklist): string {
+  if (!item.enabled) return "mdi-cancel";
+  const status = item.last_status;
+  if (!status) return "mdi-clock-outline";
+  const s = status.toLowerCase();
+  if (s.includes("ok") || s.includes("success")) return "mdi-check-circle";
+  if (s.includes("fail") || s.includes("error")) return "mdi-alert-circle";
+  return "mdi-information";
+}
+
+function statusLabel(item: Blocklist): string {
+  if (!item.enabled) return "disabled";
+  const status = item.last_status;
+  if (!status || !status.trim()) return "never run";
+  // Backend embeds the domain count (e.g. "ok: 75945 domains") — show just the status.
+  return status.replace(/:.*$/, "").trim();
+}
+
+function formatUpdated(ts: string | null): string {
+  if (!ts) return "never";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 interface BlocklistForm {
-  name: string;
   url: string;
   update_interval_hours: number;
   enabled: boolean;
 }
 
 function emptyForm(): BlocklistForm {
-  return { name: "", url: "", update_interval_hours: 24, enabled: true };
+  return { url: "", update_interval_hours: 24, enabled: true };
 }
 
 const dialog = ref(false);
@@ -49,7 +94,6 @@ function openCreate(): void {
 function openEdit(row: Blocklist): void {
   editingId.value = row.id;
   Object.assign(form, {
-    name: row.name,
     url: row.url,
     update_interval_hours: row.update_interval_hours,
     enabled: row.enabled
@@ -62,7 +106,6 @@ async function submit(): Promise<void> {
   saving.value = true;
   formError.value = null;
   const body: BlocklistCreate = {
-    name: form.name.trim(),
     url: form.url.trim(),
     update_interval_hours: form.update_interval_hours,
     enabled: form.enabled
@@ -107,42 +150,47 @@ async function remove(): Promise<void> {
   }
 }
 
-// ---- Domain viewer (paginated; lists can be very large) ----
-const domainsDialog = ref(false);
-const domainsFor = ref<Blocklist | null>(null);
-const domains = ref<string[]>([]);
-const domainsTotal = ref(0);
-const domainsPage = ref(1);
-const domainsLoading = ref(false);
-const domainsError = ref<string | null>(null);
-const DOMAINS_PAGE_SIZE = 100;
+// Domain lookup: "is this domain on a blocklist, and which one?" (GET /blocklists/lookup).
+const lookupQuery = ref("");
+const lookupResults = ref<BlocklistMatch[]>([]);
+const lookupLoading = ref(false);
+const lookupError = ref<string | null>(null);
+const lookupSearched = ref(false);
 
-async function loadDomains(): Promise<void> {
-  if (!domainsFor.value) return;
-  domainsLoading.value = true;
-  domainsError.value = null;
+async function runLookup(): Promise<void> {
+  const q = lookupQuery.value.trim();
+  if (!q) return;
+  lookupLoading.value = true;
+  lookupError.value = null;
   try {
-    const offset = (domainsPage.value - 1) * DOMAINS_PAGE_SIZE;
-    const res = await listBlocklistDomains(domainsFor.value.id, DOMAINS_PAGE_SIZE, offset);
-    domains.value = res.items;
-    domainsTotal.value = res.total;
+    const page = await searchBlocklistDomains(q, 100);
+    lookupResults.value = page.items;
+    lookupSearched.value = true;
   } catch (e) {
-    domainsError.value = apiErrorMessage(e);
+    lookupError.value = apiErrorMessage(e);
+    lookupResults.value = [];
+    lookupSearched.value = false;
   } finally {
-    domainsLoading.value = false;
+    lookupLoading.value = false;
   }
 }
 
-function openDomains(row: Blocklist): void {
-  domainsFor.value = row;
-  domainsPage.value = 1;
-  domainsDialog.value = true;
-  void loadDomains();
-}
+// Last 100 hours of blocklist-denied traffic for the bottom chart (GET /stats/site).
+const siteStats = ref<SiteHourlyStat[]>([]);
+const siteLoading = ref(true);
+const siteError = ref<string | null>(null);
 
-function changeDomainsPage(next: number): void {
-  domainsPage.value = next;
-  void loadDomains();
+async function loadSiteStats(): Promise<void> {
+  siteLoading.value = true;
+  siteError.value = null;
+  try {
+    siteStats.value = await getSiteStats(100);
+  } catch (e) {
+    siteError.value = apiErrorMessage(e);
+    siteStats.value = [];
+  } finally {
+    siteLoading.value = false;
+  }
 }
 
 // ---- Overrides (allowlist): domains stripped from blocklists at download time ----
@@ -239,12 +287,94 @@ onMounted(() => {
   void store.load();
   void store.loadOverrides();
   void loadTopBlocked();
+  void loadSiteStats();
 });
 </script>
 
 <template>
   <div>
-    <div class="d-flex align-center mb-4">
+    <!-- Domain lookup: which blocklist (if any) contains a domain -->
+    <v-sheet
+      rounded="lg"
+      color="#090c10"
+      class="pa-4 mb-4"
+    >
+      <div class="lookup-heading mb-1">
+        Blocklist lookup
+      </div>
+      <div class="text-body-2 text-medium-emphasis mb-3">
+        Type a domain (or part of one) to check whether it appears on any blocklist.
+      </div>
+      <div class="d-flex ga-2 align-center">
+        <v-text-field
+          v-model="lookupQuery"
+          label="Domain or partial domain"
+          prepend-inner-icon="mdi-magnify"
+          density="compact"
+          variant="outlined"
+          hide-details
+          :loading="lookupLoading"
+          @keyup.enter="runLookup"
+        />
+        <v-btn
+          color="primary"
+          :loading="lookupLoading"
+          :disabled="!lookupQuery.trim()"
+          @click="runLookup"
+        >
+          Search
+        </v-btn>
+      </div>
+
+      <v-alert
+        v-if="lookupError"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mt-3"
+      >
+        {{ lookupError }}
+      </v-alert>
+
+      <div
+        v-else-if="lookupSearched && lookupResults.length === 0"
+        class="d-flex align-center ga-2 mt-3 text-success"
+      >
+        <v-icon size="18">
+          mdi-check-circle
+        </v-icon>
+        <span>Not found on any blocklist.</span>
+      </div>
+
+      <div
+        v-else-if="lookupResults.length"
+        class="lookup-results mt-3"
+      >
+        <div class="text-caption text-medium-emphasis mb-2">
+          {{ lookupResults.length }} match{{ lookupResults.length === 1 ? "" : "es" }}
+        </div>
+        <div
+          v-for="m in lookupResults"
+          :key="`${m.blocklist_id}:${m.domain}`"
+          class="d-flex align-center ga-2 py-1"
+        >
+          <v-icon
+            size="16"
+            color="error"
+          >
+            mdi-cancel
+          </v-icon>
+          <span class="lookup-domain">{{ m.domain }}</span>
+          <span class="text-medium-emphasis">on</span>
+          <span class="lookup-source">{{ m.blocklist_name ?? `blocklist #${m.blocklist_id}` }}</span>
+        </div>
+      </div>
+    </v-sheet>
+
+    <div class="d-flex align-center mb-4 ga-3">
+      <div class="text-body-2 text-medium-emphasis">
+        Domain blocklists are downloaded and refreshed on a schedule.
+      </div>
       <v-spacer />
       <v-btn
         color="primary"
@@ -272,30 +402,55 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No blocklists configured."
     >
-      <v-card color="surface-card">
+      <v-sheet
+        rounded="lg"
+        color="#090c10"
+      >
         <v-data-table
           :headers="headers"
           :items="items"
-          density="comfortable"
+          density="compact"
           class="app-table"
           mobile-breakpoint="md"
+          :items-per-page="-1"
+          hide-default-footer
         >
           <template #item.url="{ item }">
-            <span
-              class="text-truncate d-inline-block"
-              style="max-width: 260px"
-            >{{ item.url }}</span>
+            <div class="d-flex align-center">
+              <v-icon
+                size="16"
+                class="mr-2 text-medium-emphasis"
+              >
+                mdi-link-variant
+              </v-icon>
+              <span
+                class="source-url"
+                :title="item.url"
+              >{{ item.url }}</span>
+            </div>
+          </template>
+          <template #item.update_interval_hours="{ item }">
+            <span class="text-medium-emphasis">every {{ item.update_interval_hours }}h</span>
+          </template>
+          <template #item.domain_count="{ item }">
+            <span class="font-weight-medium">{{ item.domain_count.toLocaleString() }}</span>
+          </template>
+          <template #item.last_downloaded_at="{ item }">
+            <span class="date-column">{{ formatUpdated(item.last_downloaded_at) }}</span>
           </template>
           <template #item.last_status="{ item }">
-            {{ item.last_status ?? "—" }}
-          </template>
-          <template #item.enabled="{ item }">
             <v-chip
-              :color="item.enabled ? 'success' : 'error'"
+              :color="statusColor(item)"
               size="small"
               variant="tonal"
             >
-              {{ item.enabled ? "yes" : "no" }}
+              <v-icon
+                start
+                size="14"
+              >
+                {{ statusIcon(item) }}
+              </v-icon>
+              {{ statusLabel(item) }}
             </v-chip>
           </template>
           <template #item.actions="{ item }">
@@ -306,13 +461,6 @@ onMounted(() => {
               :loading="refreshingId === item.id"
               title="Refresh now"
               @click="refresh(item)"
-            />
-            <v-btn
-              icon="mdi-format-list-bulleted"
-              variant="text"
-              size="small"
-              title="View domains"
-              @click="openDomains(item)"
             />
             <v-btn
               icon="mdi-pencil"
@@ -329,7 +477,7 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
-      </v-card>
+      </v-sheet>
     </AsyncState>
 
     <!-- Overrides (allowlist): domains stripped from blocklists at download time -->
@@ -454,6 +602,13 @@ onMounted(() => {
       </v-card>
     </AsyncState>
 
+    <BlocklistTrafficChart
+      :stats="siteStats"
+      :loading="siteLoading"
+      :error="siteError"
+      class="mt-4"
+    />
+
     <v-dialog
       v-model="dialog"
       max-width="560"
@@ -469,10 +624,6 @@ onMounted(() => {
           >
             {{ formError }}
           </v-alert>
-          <v-text-field
-            v-model="form.name"
-            label="Name"
-          />
           <v-text-field
             v-model="form.url"
             label="Source URL (http/https)"
@@ -518,7 +669,7 @@ onMounted(() => {
       <v-card>
         <v-card-title>Delete blocklist</v-card-title>
         <v-card-text>
-          Delete <strong>{{ confirmDelete?.name }}</strong> and all its stored domains?
+          Delete this blocklist (<strong>{{ confirmDelete?.url }}</strong>) and all its stored domains?
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -534,56 +685,6 @@ onMounted(() => {
             @click="remove"
           >
             Delete
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog
-      v-model="domainsDialog"
-      max-width="640"
-    >
-      <v-card>
-        <v-card-title class="d-flex align-center">
-          Domains — {{ domainsFor?.name }}
-          <v-spacer />
-          <span class="text-caption text-medium-emphasis">{{ domainsTotal }} total</span>
-        </v-card-title>
-        <v-card-text>
-          <AsyncState
-            :loading="domainsLoading"
-            :error="domainsError"
-            :empty="!domainsLoading && domains.length === 0"
-            empty-text="No domains stored yet — try refreshing."
-          >
-            <v-list
-              density="compact"
-              max-height="360"
-              class="overflow-y-auto"
-            >
-              <v-list-item
-                v-for="d in domains"
-                :key="d"
-                :title="d"
-              />
-            </v-list>
-            <v-pagination
-              v-if="domainsTotal > DOMAINS_PAGE_SIZE"
-              :model-value="domainsPage"
-              :length="Math.ceil(domainsTotal / DOMAINS_PAGE_SIZE)"
-              :total-visible="5"
-              class="mt-2"
-              @update:model-value="changeDomainsPage"
-            />
-          </AsyncState>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn
-            variant="text"
-            @click="domainsDialog = false"
-          >
-            Close
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -663,3 +764,32 @@ onMounted(() => {
     </v-dialog>
   </div>
 </template>
+
+<style scoped>
+.source-url {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lookup-heading {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #b1b8c0;
+}
+
+.lookup-domain {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: #e6e9ee;
+  overflow-wrap: anywhere;
+}
+
+.lookup-source {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: #8b949e;
+  overflow-wrap: anywhere;
+}
+</style>

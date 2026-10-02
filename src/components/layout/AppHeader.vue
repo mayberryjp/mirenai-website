@@ -41,7 +41,7 @@ const logoError = ref(false);
         class="mr-3"
       />
       <span class="product-name text-subtitle-1 text-lg-h5">
-        Mirenai ミレナイ
+        Miren
         <span class="product-bar tagline">|</span>
         <span class="tagline-text tagline">Know Your Network</span>
       </span>
@@ -152,7 +152,7 @@ const logoError = ref(false);
 
 /* Branding colour/weight only — size comes from Vuetify text utilities */
 .product-name {
-  color: #2ec4a0;
+  color: #53cdba;
   font-weight: 700;
   text-align: start;
   line-height: 1.4;
@@ -168,7 +168,7 @@ const logoError = ref(false);
 }
 
 .tagline-text {
-  color: #5b8def;
+  color: #f5a623;
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: 0.05em !important;

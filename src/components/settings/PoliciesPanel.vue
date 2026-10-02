@@ -135,11 +135,14 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No policies defined."
     >
-      <v-card color="surface-card">
+      <v-sheet
+        rounded="lg"
+        color="#090c10"
+      >
         <v-data-table
           :headers="headers"
           :items="items"
-          density="comfortable"
+          density="compact"
           class="app-table"
           mobile-breakpoint="md"
         >
@@ -171,7 +174,7 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
-      </v-card>
+      </v-sheet>
     </AsyncState>
 
     <v-dialog

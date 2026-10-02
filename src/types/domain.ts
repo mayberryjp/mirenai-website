@@ -70,12 +70,18 @@ export interface Blocklist {
 }
 
 export interface BlocklistCreate {
-  name: string;
   url: string;
   update_interval_hours?: number; // default 24, >= 1
   enabled?: boolean; // default true
 }
 export type BlocklistUpdate = Partial<BlocklistCreate>;
+
+// A domain matched by the blocklist search, plus which blocklist contains it.
+export interface BlocklistMatch {
+  domain: string;
+  blocklist_id: number;
+  blocklist_name: string | null; // null only if the config row is gone
+}
 
 // ---- Blocklist overrides (allowlist) ----
 // Exempted domains stripped from every blocklist at download time (not at
@@ -116,6 +122,7 @@ export interface QueryLog {
   qtype: string;
   count: number;
   last_action: PolicyAction | null;
+  blocked?: boolean; // true = domain is on a blocklist
   first_seen: string;
   last_seen: string;
 }
@@ -144,8 +151,8 @@ export interface TopBlockedDomain {
 }
 
 // ---- Clients ----
-// The client roster is derived from the query log (one entry per distinct
-// QueryLog.client) — see services/clients.ts.
+// The client roster is the device inventory from /hosts (one entry per host) —
+// see services/clients.ts.
 export interface ClientSummary {
   client: string; // IP address
   total_queries: number; // sum of QueryLog.count
@@ -153,47 +160,93 @@ export interface ClientSummary {
   last_seen: string | null; // most recent last_seen across the client's rows
 }
 
-// Per-client hourly query history for the detail chart. Served by the future
-// GET /clients/{client}/history endpoint (see services/stats.ts).
-export interface ClientHourlyStat {
-  hour: string; // ISO hour bucket, container-local wall-clock (no offset)
-  queries: number; // total queries in the hour
-  blocked: number; // subset that were denied/blocklisted
+// Client response mode — GET/PUT /clients/{ip}/mode (flat, non-enveloped response).
+// GET may report "override" (advanced per-domain rule); PUT only accepts the settable modes.
+export type ClientMode = "forward" | "deny" | "blocklist" | "default" | "override";
+export type SettableClientMode = Exclude<ClientMode, "override">;
+
+export interface ClientModeState {
+  status: "ok";
+  client: string;
+  mode: ClientMode;
+  policy_id: number | null;
 }
 
-// Site-wide hourly totals across all clients. Served by GET /stats/site.
-export interface SiteHourlyStat {
+// ---- Hosts ----
+// Server-recorded device rows, one per client IP. device_name and icon are writable.
+export interface Host {
+  id: number;
+  ip: string;
+  mac_address: string | null; // read-only; auto-recorded like ip
+  device_name: string | null;
+  icon: string | null; // icon key (e.g. "TV"); null until set
+  excluded_from_blocklist: boolean; // writable via PUT /hosts/{id}; true = bypass the blocklist
+  flag_new_domains: boolean; // writable; true = include this client's new domains in monitoring
+  query_count: number; // read-only
+  first_seen: string; // read-only
+  last_seen: string; // read-only
+}
+
+// Per-hour result breakdown shared by the site and per-client traffic charts.
+export interface HourlyResultStat {
   hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
-  total: number;
   forwarded: number;
   cached: number;
   overridden: number;
   denied: number;
   blocked: number;
   servfail: number;
+}
+
+// Site-wide hourly totals across all clients. Served by GET /stats/site.
+export interface SiteHourlyStat extends HourlyResultStat {
+  total: number;
   clients: number;
 }
 
-// ---- Hosts ----
-// Client devices, auto-recorded one row per source IP (see /hosts). The device
-// name and per-client flags are editable; the remaining fields are read-only.
-export interface Host {
+// Per-client hourly stats. Served by GET /stats?client=<ip>&hours=<n>.
+export interface ClientStat extends HourlyResultStat {
   id: number;
-  ip: string;
-  device_name: string | null;
-  icon: string | null;
-  mac_address: string | null;
-  excluded_from_blocklist: boolean;
-  flag_new_domains: boolean; // true = Include (monitor new domains), false = Exclude
-  query_count: number;
-  first_seen: string;
-  last_seen: string;
+  client: string;
+  total: number;
 }
 
-// Editable subset accepted by PUT /hosts/{id}.
-export type HostUpdate = Partial<
-  Pick<Host, "device_name" | "icon" | "mac_address" | "excluded_from_blocklist" | "flag_new_domains">
->;
+// Per-client hourly count of newly-seen ("new") domains — one row per (hour, client).
+// Served by GET /stats/new-domains[?client=<ip>]; powers the client-list alert bars.
+export interface NewDomainStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  client: string;
+  new_domains: number;
+}
+
+// A recently first-seen (client, domain) pair — qtypes (A/AAAA/…) collapsed into
+// one row via min(first_seen). Served by GET /stats/new-domains/recent.
+export interface RecentNewDomain {
+  client: string;
+  domain: string;
+  first_seen: string; // ISO, container-local wall-clock (no offset)
+  last_action: PolicyAction | null; // action taken (forward=Allow, deny=Block, …); null = default/none
+  blocked?: boolean; // true = domain is on a blocklist
+}
+
+// Current resolver runtime counters for the dashboard stat banner. Served by GET /stats/runtime.
+export interface RuntimeStats {
+  cache_size: number;
+  cache_capacity: number;
+  blocklist_domains: number;
+  upstreams: number;
+  policies: number;
+}
+
+// Per-upstream hourly RTT stats for the upstreams RTT chart. Served by
+// GET /stats/upstreams?hours=<n>; one dense row per (hour, address), null-filled.
+export interface UpstreamRttStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  address: string;
+  samples: number;
+  avg_ms: number | null; // null when samples === 0
+  max_ms: number | null; // null when samples === 0
+}
 
 // ---- Settings ----
 export interface Settings {
@@ -203,6 +256,7 @@ export interface Settings {
   cache_max_entries: number;
   forward_timeout: number;
   default_action: "deny" | "forward";
+  ipv6_enabled: boolean;
   refresh_seconds: number;
   query_flush_seconds: number;
   log_queries: boolean;
@@ -215,9 +269,13 @@ export type PolicyList = OkEnvelope & { policies: Policy[]; total: number };
 
 export type UpstreamResponse = OkEnvelope & { upstream: Upstream };
 export type UpstreamList = OkEnvelope & { upstreams: Upstream[]; total: number };
+// POST /upstreams/{id}/check — sample DNS query through the upstream; round-trip time in ms.
+export type UpstreamCheckResponse = OkEnvelope & { rtt_ms: number };
 
 export type BlocklistResponse = OkEnvelope & { blocklist: Blocklist };
 export type BlocklistList = OkEnvelope & { blocklists: Blocklist[]; total: number };
+// GET /blocklists/search?q=<substring> — stored domains containing q, each annotated with its blocklist.
+export type BlocklistSearchResponse = OkEnvelope & { matches: BlocklistMatch[]; total: number };
 
 export type BlocklistOverrideResponse = OkEnvelope & { override: BlocklistOverride };
 export type BlocklistOverrideList = OkEnvelope & { overrides: BlocklistOverride[]; total: number };
@@ -238,15 +296,42 @@ export type SettingsResponse = OkEnvelope & { settings: Settings };
 
 export type HealthResponse = OkEnvelope & { service: string };
 
-// Future endpoint: GET /clients/{client}/history?hours=100 (see services/stats.ts).
-export type ClientHistoryResponse = OkEnvelope & {
-  client: string;
-  history: ClientHourlyStat[];
+// POST /cache/flush — records a flush request; the worker clears its cache on its next poll.
+export type CacheFlushResponse = OkEnvelope & { requested_at: string };
+
+// GET /stats?client=<ip>&hours=<n> — per-client hourly stats.
+export type ClientStatsResponse = OkEnvelope & {
+  stats: ClientStat[];
+  total: number;
 };
 
 // GET /stats/site — site-wide hourly totals (newest hour first, paginated).
 export type SiteStatsResponse = OkEnvelope & {
   stats: SiteHourlyStat[];
+  total: number;
+};
+
+// GET /stats/new-domains[?client=<ip>] — per-client hourly new-domain counts.
+export type NewDomainStatsResponse = OkEnvelope & {
+  stats: NewDomainStat[];
+  total: number;
+};
+
+// GET /stats/new-domains/recent[?limit=<n>] — most recently first-seen (client, domain) pairs.
+export type RecentNewDomainsResponse = OkEnvelope & {
+  domains: RecentNewDomain[];
+  total: number;
+};
+
+// GET /stats/runtime — current cache/blocklist/upstream/policy counters plus a snapshot timestamp.
+export type RuntimeStatsResponse = OkEnvelope & {
+  stats: RuntimeStats;
+  updated_at: string;
+};
+
+// GET /stats/upstreams?hours=<n> — dense per-upstream hourly RTT series.
+export type UpstreamRttStatsResponse = OkEnvelope & {
+  stats: UpstreamRttStat[];
   total: number;
 };
 

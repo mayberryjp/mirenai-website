@@ -1,34 +1,87 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
-import { usePoliciesStore } from "@/stores/policies";
-import { useUpstreamsStore } from "@/stores/upstreams";
-import { useBlocklistsStore } from "@/stores/blocklists";
-import { getSiteStats } from "@/services/stats";
+import { getRecentNewDomains, getRuntimeStats, getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
-import type { SiteHourlyStat } from "@/types/domain";
+import RecentDomainsTable from "@/components/dashboard/RecentDomainsTable.vue";
+import type { RecentNewDomain, RuntimeStats, SiteHourlyStat } from "@/types/domain";
 
 const clients = useClientsStore();
-const policies = usePoliciesStore();
-const upstreams = useUpstreamsStore();
-const blocklists = useBlocklistsStore();
-
-const stats = computed(() => [
-  { label: "Clients", description: "Seen", value: clients.total, color: "text-blue" },
-  { label: "Queries", description: "Logged", value: clients.totalQueries, color: "text-green" },
-  { label: "Policies", description: "Total", value: policies.total, color: "text-blue" },
-  { label: "Upstreams", description: "Total", value: upstreams.total, color: "text-blue" },
-  { label: "Blocklists", description: "Total", value: blocklists.total, color: "text-green" }
-]);
-
-function fmt(n: number): string {
-  return n.toLocaleString();
-}
 
 const siteStats = ref<SiteHourlyStat[]>([]);
 const siteLoading = ref(true);
 const siteError = ref<string | null>(null);
+
+const recentDomains = ref<RecentNewDomain[]>([]);
+const recentLoading = ref(true);
+const recentError = ref<string | null>(null);
+
+const runtime = ref<RuntimeStats | null>(null);
+
+// Aggregate the already-loaded 100-hour site stats (no extra API calls).
+const siteTotals = computed(() =>
+  siteStats.value.reduce(
+    (acc, s) => {
+      acc.total += s.total;
+      acc.forwarded += s.forwarded;
+      acc.cached += s.cached;
+      acc.overridden += s.overridden;
+      acc.denied += s.denied;
+      acc.blocked += s.blocked;
+      acc.servfail += s.servfail;
+      return acc;
+    },
+    { total: 0, forwarded: 0, cached: 0, overridden: 0, denied: 0, blocked: 0, servfail: 0 }
+  )
+);
+
+// Top banner: current resolver runtime snapshot (GET /stats/runtime).
+const stats = computed(() => [
+  {
+    label: "Cache Size",
+    description: `of ${fmt(runtime.value?.cache_capacity ?? 0)}`,
+    value: runtime.value?.cache_size ?? 0,
+    color: "text-blue"
+  },
+  {
+    label: "Blocklist Domains",
+    description: "In Blocklist",
+    value: runtime.value?.blocklist_domains ?? 0,
+    color: "text-green"
+  },
+  {
+    label: "Upstreams",
+    description: "Resolvers",
+    value: runtime.value?.upstreams ?? 0,
+    color: "text-blue"
+  },
+  {
+    label: "Policies",
+    description: "Rules",
+    value: runtime.value?.policies ?? 0,
+    color: "text-green"
+  }
+]);
+
+// One chip per chart series, each with its share of total queries.
+// Labels and colors mirror the Site DNS Traffic legend.
+const trafficChips = computed(() => {
+  const t = siteTotals.value;
+  const pct = (n: number): number => (t.total > 0 ? (n / t.total) * 100 : 0);
+  return [
+    { label: "Forwarded", value: t.forwarded, color: "#2ec4a0", percent: pct(t.forwarded) },
+    { label: "Cached", value: t.cached, color: "#7b61ff", percent: pct(t.cached) },
+    { label: "Spoofed", value: t.overridden, color: "#ffc93c", percent: pct(t.overridden) },
+    { label: "Policy Denied", value: t.denied, color: "#f5822a", percent: pct(t.denied) },
+    { label: "Blocklist Denied", value: t.blocked, color: "#ff5a36", percent: pct(t.blocked) },
+    { label: "Servfail", value: t.servfail, color: "#9aa4b2", percent: pct(t.servfail) }
+  ];
+});
+
+function fmt(n: number): string {
+  return n.toLocaleString();
+}
 
 async function loadSiteStats(): Promise<void> {
   siteLoading.value = true;
@@ -43,21 +96,37 @@ async function loadSiteStats(): Promise<void> {
   }
 }
 
+async function loadRecentDomains(): Promise<void> {
+  recentLoading.value = true;
+  recentError.value = null;
+  try {
+    recentDomains.value = await getRecentNewDomains(500);
+  } catch (e) {
+    recentError.value = apiErrorMessage(e);
+    recentDomains.value = [];
+  } finally {
+    recentLoading.value = false;
+  }
+}
+
+async function loadRuntime(): Promise<void> {
+  try {
+    runtime.value = await getRuntimeStats();
+  } catch {
+    runtime.value = null;
+  }
+}
+
 onMounted(() => {
   if (!clients.loaded) void clients.load();
-  void policies.load();
-  void upstreams.load();
-  void blocklists.load();
   void loadSiteStats();
+  void loadRecentDomains();
+  void loadRuntime();
 });
 </script>
 
 <template>
   <div>
-    <h1 class="text-h5 font-weight-bold mb-4">
-      Dashboard
-    </h1>
-
     <!-- Quick stats banner -->
     <v-row class="quickstats-background ma-0 rounded-lg mb-4">
       <v-col
@@ -90,6 +159,15 @@ onMounted(() => {
       :stats="siteStats"
       :loading="siteLoading"
       :error="siteError"
+      :totals="trafficChips"
+    />
+
+    <!-- Recently first-seen client/domain pairs -->
+    <RecentDomainsTable
+      :rows="recentDomains"
+      :loading="recentLoading"
+      :error="recentError"
+      class="mt-4"
     />
   </div>
 </template>

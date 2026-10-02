@@ -29,7 +29,7 @@ export const useBlocklistsStore = defineStore("blocklists", () => {
     loading.value = true;
     error.value = null;
     try {
-      const page = await listBlocklists();
+      const page = await listBlocklists(100);
       items.value = page.items;
       total.value = page.total;
     } catch (e) {

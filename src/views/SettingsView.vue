@@ -3,30 +3,24 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 
-// Each panel is its own child route under /settings; the tab rail just navigates
-// between them. Tabs render vertically on desktop (lg+) and as a horizontal
-// scrollable bar on phones & tablets (< lg), where the narrow rail would
-// otherwise squeeze the form.
+// Each tab is its own child route (/settings/<x>), so pages deep-link and the
+// browser back/forward buttons move between settings pages. Tabs render
+// vertically on desktop (lg+) and as a horizontal scrollable bar on phones &
+// tablets (< lg), where the narrow rail would otherwise squeeze the form.
 const { lgAndUp } = useDisplay();
 const route = useRoute();
 
-interface SettingsTab {
-  value: string;
-  title: string;
-  heading: string;
-  routeName: string;
-}
-
-const tabs: SettingsTab[] = [
-  { value: "general", title: "General", heading: "General Settings", routeName: "settings-general" },
-  { value: "policies", title: "Policies", heading: "Policies", routeName: "settings-policies" },
-  { value: "upstreams", title: "Upstreams", heading: "Upstreams", routeName: "settings-upstreams" },
-  { value: "blocklists", title: "Blocklists", heading: "Blocklists", routeName: "settings-blocklists" },
-  { value: "networking", title: "Networking", heading: "Networking", routeName: "settings-networking" }
+const tabs = [
+  { value: "settings-general", label: "General", heading: "General Settings" },
+  { value: "settings-upstreams", label: "Upstreams", heading: "Upstream DNS Servers" },
+  { value: "settings-blocklists", label: "Blocklists", heading: "Blocklists" },
+  { value: "settings-networking", label: "Networking", heading: "Networking" },
+  { value: "settings-advanced", label: "Advanced", heading: "Advanced" }
 ];
 
-const activeTab = computed(() => tabs.find((t) => t.routeName === route.name)?.value ?? "general");
-const activeHeading = computed(() => tabs.find((t) => t.routeName === route.name)?.heading ?? "");
+const heading = computed(
+  () => tabs.find((tab) => tab.value === route.name)?.heading ?? ""
+);
 </script>
 
 <template>
@@ -35,13 +29,13 @@ const activeHeading = computed(() => tabs.find((t) => t.routeName === route.name
     color="surface-card"
   >
     <v-row no-gutters>
-      <!-- Left tab rail -->
+      <!-- Left tab rail — each tab navigates to its own /settings/<x> route -->
       <v-col
         cols="12"
         lg="3"
       >
         <v-tabs
-          :model-value="activeTab"
+          :model-value="route.name as string"
           :direction="lgAndUp ? 'vertical' : 'horizontal'"
           :show-arrows="!lgAndUp"
           color="primary"
@@ -50,20 +44,20 @@ const activeHeading = computed(() => tabs.find((t) => t.routeName === route.name
             v-for="tab in tabs"
             :key="tab.value"
             :value="tab.value"
-            :to="{ name: tab.routeName }"
+            :to="{ name: tab.value }"
           >
-            {{ tab.title }}
+            {{ tab.label }}
           </v-tab>
         </v-tabs>
       </v-col>
 
-      <!-- Right content: the active child route renders here -->
+      <!-- Right content — the active child route renders here -->
       <v-col
         cols="12"
         lg="9"
       >
         <v-card-text>
-          <h3>{{ activeHeading }}</h3>
+          <h3>{{ heading }}</h3>
           <v-divider class="my-4" />
           <router-view />
         </v-card-text>

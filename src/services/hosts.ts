@@ -1,23 +1,41 @@
 import api from "@/services/api";
-import type { Host, HostList, HostResponse, HostUpdate, Page } from "@/types/domain";
+import type { Host, HostList, HostResponse } from "@/types/domain";
 
-// Hosts are auto-recorded one row per source IP. Device name and per-client
-// flags (e.g. flag_new_domains) are editable via PUT /hosts/{id}.
-const HOST_SCAN_LIMIT = 5000;
-
-export async function listHosts(limit?: number, offset?: number): Promise<Page<Host>> {
-  const res = await api.get<HostList>("/hosts", { params: { limit, offset } });
-  return { items: res.data.hosts, total: res.data.total };
+export async function listHosts(): Promise<Host[]> {
+  const res = await api.get<HostList>("/hosts");
+  return res.data.hosts;
 }
 
-export async function updateHost(id: number, body: HostUpdate): Promise<Host> {
-  const res = await api.put<HostResponse>(`/hosts/${id}`, body);
+// Hosts are keyed by numeric id, not IP — resolve the row for a client IP first.
+export async function findHostByIp(ip: string): Promise<Host | null> {
+  const hosts = await listHosts();
+  return hosts.find((h) => h.ip === ip) ?? null;
+}
+
+// device_name: trimmed string, or null/"" to clear the name.
+export async function updateHostName(id: number, deviceName: string | null): Promise<Host> {
+  const res = await api.put<HostResponse>(`/hosts/${id}`, { device_name: deviceName });
   return res.data.host;
 }
 
-// The client detail route is keyed by IP, but /hosts is addressed by id, so
-// resolve the host by scanning the (paginated) roster for a matching IP.
-export async function findHostByIp(ip: string): Promise<Host | null> {
-  const { items } = await listHosts(HOST_SCAN_LIMIT, 0);
-  return items.find((h) => h.ip === ip) ?? null;
+// excluded_from_blocklist: true opts this client out of blocklist enforcement.
+export async function setHostBlocklistExclusion(id: number, excluded: boolean): Promise<Host> {
+  const res = await api.put<HostResponse>(`/hosts/${id}`, { excluded_from_blocklist: excluded });
+  return res.data.host;
+}
+
+// flag_new_domains: true keeps this client's newly-seen domains in monitoring; false opts out.
+export async function setHostNewDomainMonitoring(id: number, enabled: boolean): Promise<Host> {
+  const res = await api.put<HostResponse>(`/hosts/${id}`, { flag_new_domains: enabled });
+  return res.data.host;
+}
+
+// Refresh this host's details (name, icon, etc.) from Sando via the mirenai backend.
+export async function syncHost(id: number): Promise<void> {
+  await api.post(`/hosts/${id}/sync`);
+}
+
+// Remove a host record entirely (DELETE returns { deleted: <id> }).
+export async function deleteHost(id: number): Promise<void> {
+  await api.delete(`/hosts/${id}`);
 }

@@ -25,18 +25,13 @@ const privateRoutes: RouteRecordRaw[] = [
       {
         path: "settings",
         name: "settings",
+        redirect: { name: "settings-general" },
         component: () => import("@/views/SettingsView.vue"),
         children: [
-          { path: "", redirect: { name: "settings-general" } },
           {
             path: "general",
             name: "settings-general",
             component: () => import("@/components/settings/GeneralSettingsPanel.vue")
-          },
-          {
-            path: "policies",
-            name: "settings-policies",
-            component: () => import("@/components/settings/PoliciesPanel.vue")
           },
           {
             path: "upstreams",
@@ -52,6 +47,11 @@ const privateRoutes: RouteRecordRaw[] = [
             path: "networking",
             name: "settings-networking",
             component: () => import("@/components/settings/NetworkingPanel.vue")
+          },
+          {
+            path: "advanced",
+            name: "settings-advanced",
+            component: () => import("@/components/settings/AdvancedPanel.vue")
           }
         ]
       }

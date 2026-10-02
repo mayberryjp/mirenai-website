@@ -3,9 +3,13 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import { useClientsStore } from "@/stores/clients";
+import { usePoliciesStore } from "@/stores/policies";
 import AsyncState from "@/components/base/AsyncState.vue";
+import DeviceIcon from "@/components/base/DeviceIcon.vue";
+import AlertBars from "@/components/base/AlertBars.vue";
 
 const store = useClientsStore();
+const policiesStore = usePoliciesStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -15,10 +19,40 @@ const isMobile = computed(() => !lgAndUp.value);
 
 const searchTerm = ref("");
 
+type SortMode = "new-domains" | "queries";
+const sortMode = ref<SortMode>("new-domains");
+
 const filteredClients = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return store.clients;
-  return store.clients.filter((c) => c.client.toLowerCase().includes(q));
+  return store.clients.filter(
+    (c) =>
+      c.client.toLowerCase().includes(q) ||
+      store.nameFor(c.client).toLowerCase().includes(q)
+  );
+});
+
+// Total new domains a client has seen across the alert-bar window.
+function newDomainCount(client: string): number {
+  return store.newDomainsFor(client).reduce((sum, n) => sum + n, 0);
+}
+
+// Filtered roster ordered by the active sort toggle: new-domain volume by
+// default, or raw query count. Each metric tie-breaks on the other.
+const sortedClients = computed(() => {
+  const list = [...filteredClients.value];
+  if (sortMode.value === "queries") {
+    return list.sort(
+      (a, b) =>
+        b.total_queries - a.total_queries ||
+        newDomainCount(b.client) - newDomainCount(a.client)
+    );
+  }
+  return list.sort(
+    (a, b) =>
+      newDomainCount(b.client) - newDomainCount(a.client) ||
+      b.total_queries - a.total_queries
+  );
 });
 
 const selectedClient = computed(() =>
@@ -44,8 +78,27 @@ function formatCount(n: number): string {
   return n.toLocaleString();
 }
 
+// Colour the device icon by recent new-domain volume (sum of the alert bars):
+// calm green when quiet, escalating to crimson as new domains pile up.
+function iconColor(client: string): string {
+  const total = newDomainCount(client);
+  if (total === 0) return "#2EC4A0";
+  if (total <= 9) return "#FFD600";
+  if (total <= 24) return "#FF9800";
+  if (total <= 49) return "#F44336";
+  return "#B71C1C";
+}
+
+// A client's default policy is its "*" wildcard policy; action "deny" == Block
+// (the same mapping the detail page's Allow/Block toggle uses).
+function isClientBlocked(client: string): boolean {
+  return policiesStore.policyFor(client, "*")?.action === "deny";
+}
+
 onMounted(() => {
   if (!store.loaded) void store.load();
+  // Best-effort: the block overlay is supplementary, and the store traps errors.
+  if (!policiesStore.items.length) void policiesStore.load();
 });
 </script>
 
@@ -114,17 +167,40 @@ onMounted(() => {
             clearable
             @click:clear="searchTerm = ''"
           />
+
+          <!-- Sort toggle: order the roster by new-domain volume or query count -->
+          <v-btn-toggle
+            v-model="sortMode"
+            mandatory
+            density="compact"
+            class="sort-toggle mt-2"
+          >
+            <v-btn
+              value="new-domains"
+              size="small"
+              class="sort-btn"
+            >
+              New domains
+            </v-btn>
+            <v-btn
+              value="queries"
+              size="small"
+              class="sort-btn"
+            >
+              Client queries
+            </v-btn>
+          </v-btn-toggle>
         </div>
 
         <AsyncState
           :loading="store.loading"
           :error="store.error"
-          :empty="!store.loading && filteredClients.length === 0"
+          :empty="!store.loading && sortedClients.length === 0"
           empty-text="No clients have made queries yet."
         >
           <v-list>
             <v-list-item
-              v-for="c in filteredClients"
+              v-for="c in sortedClients"
               :key="c.client"
               class="host-list-item"
               :class="{ 'selected-host': isClientSelected(c.client) }"
@@ -133,22 +209,29 @@ onMounted(() => {
               <div class="d-flex align-center w-100">
                 <!-- Icon container with fixed width for alignment -->
                 <div class="icon-container">
-                  <v-icon
-                    size="24"
-                    color="#64B5F6"
-                  >
-                    mdi-monitor
-                  </v-icon>
+                  <DeviceIcon
+                    :icon="store.iconFor(c.client)"
+                    :size="24"
+                    :color="iconColor(c.client)"
+                    :blocked="isClientBlocked(c.client)"
+                  />
                 </div>
 
                 <!-- Client info with consistent left margin -->
                 <div class="host-info">
-                  {{ c.client }}
+                  {{ store.nameFor(c.client) }}
                 </div>
 
-                <!-- Query count (right-aligned, like the reference threat score) -->
-                <div class="threat-score-text ml-auto">
-                  {{ formatCount(c.total_queries) }}
+                <!-- New-domain activity for this client (last 12 hours) -->
+                <AlertBars
+                  :alert-intervals="store.newDomainsFor(c.client)"
+                  class="ml-2"
+                />
+
+                <!-- New domains (orange) / total queries, right-aligned -->
+                <div class="threat-score-text">
+                  <span class="new-domain-count">{{ formatCount(newDomainCount(c.client)) }}</span>
+                  <span class="count-divider">/</span>{{ formatCount(c.total_queries) }}
                 </div>
               </div>
             </v-list-item>
@@ -183,6 +266,7 @@ onMounted(() => {
 
 .host-info {
   flex-grow: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -217,13 +301,45 @@ onMounted(() => {
   opacity: 0.3;
 }
 
+.sort-toggle {
+  width: 100%;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sort-toggle .sort-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  color: #8b949e;
+  background-color: #161b22;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+
+.sort-toggle .v-btn--active {
+  color: #e6edf3;
+  background-color: #22303c;
+}
+
 .threat-score-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
-  min-width: 56px;
+  min-width: 92px;
+  flex-shrink: 0;
   text-align: right;
   color: #2ec4a0;
   white-space: nowrap;
+}
+
+.new-domain-count {
+  color: #f5822a;
+}
+
+.count-divider {
+  color: #6e7681;
+  margin: 0 3px;
 }
 
 /* Subtle custom scrollbar */

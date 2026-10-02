@@ -9,8 +9,8 @@ import { useUiStore } from "@/stores/ui";
 const ui = useUiStore();
 const route = useRoute();
 
-// Routes that use the full content width with no client sidebar. Settings has
-// child routes (e.g. settings-general), so match the parent via route.matched.
+// Routes that use the full content width with no client sidebar. Settings is a
+// parent route with child tabs, so match it anywhere in the matched chain.
 const fullWidthRoute = computed(() =>
   route.matched.some((r) => r.name === "queries" || r.name === "settings")
 );

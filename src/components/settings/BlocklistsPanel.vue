@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useBlocklistsStore } from "@/stores/blocklists";
 import { listBlocklistDomains } from "@/services/blocklists";
+import { listTopBlocked } from "@/services/queries";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { Blocklist, BlocklistCreate } from "@/types/domain";
+import type { Blocklist, BlocklistCreate, BlocklistOverride, TopBlockedDomain } from "@/types/domain";
 
 const store = useBlocklistsStore();
-const { items, loading, error, refreshingId } = storeToRefs(store);
+const { items, loading, error, refreshingId, overrides, overridesLoading, overridesError } =
+  storeToRefs(store);
 
 const headers = [
   { title: "Name", key: "name" },
@@ -143,8 +145,100 @@ function changeDomainsPage(next: number): void {
   void loadDomains();
 }
 
+// ---- Overrides (allowlist): domains stripped from blocklists at download time ----
+const overrideHeaders = [
+  { title: "Domain", key: "domain" },
+  { title: "Added", key: "created_at" },
+  { title: "", key: "actions", sortable: false, align: "end" as const }
+];
+
+// Shown after a mutation: overrides only apply once each blocklist is reloaded.
+const overrideReloadNote = ref(false);
+
+const overrideDialog = ref(false);
+const overrideDomain = ref("");
+const overrideFormError = ref<string | null>(null);
+const overrideSaving = ref(false);
+
+function openAddOverride(): void {
+  overrideDomain.value = "";
+  overrideFormError.value = null;
+  overrideDialog.value = true;
+}
+
+async function submitOverride(): Promise<void> {
+  const domain = overrideDomain.value.trim();
+  if (!domain) {
+    overrideFormError.value = "Domain is required.";
+    return;
+  }
+  overrideSaving.value = true;
+  overrideFormError.value = null;
+  try {
+    await store.addOverride(domain);
+    overrideDialog.value = false;
+    overrideReloadNote.value = true;
+  } catch (e) {
+    overrideFormError.value = apiErrorMessage(e);
+  } finally {
+    overrideSaving.value = false;
+  }
+}
+
+const confirmDeleteOverride = ref<BlocklistOverride | null>(null);
+const overrideDeleting = ref(false);
+
+async function removeOverride(): Promise<void> {
+  if (!confirmDeleteOverride.value) return;
+  overrideDeleting.value = true;
+  try {
+    await store.removeOverride(confirmDeleteOverride.value.id);
+    confirmDeleteOverride.value = null;
+    overrideReloadNote.value = true;
+  } finally {
+    overrideDeleting.value = false;
+  }
+}
+
+// ---- Top blocked domains (read-only; GET /queries/top-blocked) ----
+// Fetch the top 50 and page through them client-side, 25 per page.
+const TOP_BLOCKED_LIMIT = 50;
+const TOP_BLOCKED_PAGE_SIZE = 25;
+
+const topBlockedHeaders = [
+  { title: "Domain", key: "domain" },
+  { title: "Count", key: "count" },
+  { title: "Clients", key: "clients", sortable: false },
+  { title: "Blocklists", key: "blocklists", sortable: false },
+  { title: "Last seen", key: "last_seen" }
+];
+
+const topBlocked = ref<TopBlockedDomain[]>([]);
+const topBlockedLoading = ref(false);
+const topBlockedError = ref<string | null>(null);
+const topBlockedPage = ref(1);
+const topBlockedPageCount = computed(() =>
+  Math.max(1, Math.ceil(topBlocked.value.length / TOP_BLOCKED_PAGE_SIZE))
+);
+
+async function loadTopBlocked(): Promise<void> {
+  topBlockedLoading.value = true;
+  topBlockedError.value = null;
+  try {
+    const res = await listTopBlocked(TOP_BLOCKED_LIMIT);
+    topBlocked.value = res.items;
+    topBlockedPage.value = 1;
+  } catch (e) {
+    topBlockedError.value = apiErrorMessage(e);
+  } finally {
+    topBlockedLoading.value = false;
+  }
+}
+
 onMounted(() => {
   void store.load();
+  void store.loadOverrides();
+  void loadTopBlocked();
 });
 </script>
 
@@ -235,6 +329,128 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
+      </v-card>
+    </AsyncState>
+
+    <!-- Overrides (allowlist): domains stripped from blocklists at download time -->
+    <div class="d-flex align-center mt-8 mb-2">
+      <div>
+        <h3 class="text-subtitle-1 font-weight-medium">
+          Blocklist overrides
+        </h3>
+        <p class="text-caption text-medium-emphasis mb-0">
+          Domains listed here are excluded (allowlisted) from every blocklist.
+        </p>
+      </div>
+      <v-spacer />
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-plus"
+        @click="openAddOverride"
+      >
+        Add override
+      </v-btn>
+    </div>
+
+    <v-alert
+      v-if="overrideReloadNote"
+      type="info"
+      variant="tonal"
+      class="mb-4"
+      closable
+      @click:close="overrideReloadNote = false"
+    >
+      A blocklist has to be reloaded for the blocklist override to take effect — use the refresh
+      action on each blocklist above.
+    </v-alert>
+
+    <AsyncState
+      :loading="overridesLoading"
+      :error="overridesError"
+      :empty="overrides.length === 0"
+      empty-text="No overrides configured."
+    >
+      <v-card color="surface-card">
+        <v-data-table
+          :headers="overrideHeaders"
+          :items="overrides"
+          density="comfortable"
+          class="app-table"
+          mobile-breakpoint="md"
+        >
+          <template #item.actions="{ item }">
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              size="small"
+              color="error"
+              title="Remove override"
+              @click="confirmDeleteOverride = item"
+            />
+          </template>
+        </v-data-table>
+      </v-card>
+    </AsyncState>
+
+    <!-- Top blocked domains (read-only insight from GET /queries/top-blocked) -->
+    <div class="mt-8 mb-2">
+      <h3 class="text-subtitle-1 font-weight-medium">
+        Top blocked domains
+      </h3>
+      <p class="text-caption text-medium-emphasis mb-0">
+        The most-blocked domains across all clients, ranked by blocked query count.
+      </p>
+    </div>
+
+    <AsyncState
+      :loading="topBlockedLoading"
+      :error="topBlockedError"
+      :empty="topBlocked.length === 0"
+      empty-text="No blocked queries recorded yet."
+    >
+      <v-card color="surface-card">
+        <v-data-table
+          :headers="topBlockedHeaders"
+          :items="topBlocked"
+          density="comfortable"
+          class="app-table"
+          mobile-breakpoint="md"
+          :items-per-page="TOP_BLOCKED_PAGE_SIZE"
+          :page="topBlockedPage"
+          hide-default-footer
+        >
+          <template #item.count="{ item }">
+            {{ item.count.toLocaleString() }}
+          </template>
+          <template #item.clients="{ item }">
+            {{ item.clients.length }}
+          </template>
+          <template #item.blocklists="{ item }">
+            <template v-if="item.blocklists.length">
+              <v-chip
+                v-for="b in item.blocklists"
+                :key="b.blocklist_id"
+                size="small"
+                variant="tonal"
+                class="mr-1 mb-1"
+              >
+                {{ b.blocklist_name }}
+              </v-chip>
+            </template>
+            <span v-else>—</span>
+          </template>
+        </v-data-table>
+        <div
+          v-if="topBlockedPageCount > 1"
+          class="d-flex justify-center pa-2"
+        >
+          <v-pagination
+            :model-value="topBlockedPage"
+            :length="topBlockedPageCount"
+            :total-visible="7"
+            @update:model-value="topBlockedPage = $event"
+          />
+        </div>
       </v-card>
     </AsyncState>
 
@@ -368,6 +584,79 @@ onMounted(() => {
             @click="domainsDialog = false"
           >
             Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog
+      v-model="overrideDialog"
+      max-width="480"
+    >
+      <v-card>
+        <v-card-title>Add blocklist override</v-card-title>
+        <v-card-text>
+          <v-alert
+            v-if="overrideFormError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ overrideFormError }}
+          </v-alert>
+          <v-text-field
+            v-model="overrideDomain"
+            label="Domain"
+            placeholder="aria.microsoft.com"
+            @keyup.enter="submitOverride"
+          />
+          <p class="text-caption text-medium-emphasis">
+            The domain is removed from blocklists the next time they are downloaded or refreshed.
+          </p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="overrideDialog = false"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            :loading="overrideSaving"
+            @click="submitOverride"
+          >
+            Add
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog
+      :model-value="confirmDeleteOverride !== null"
+      max-width="440"
+      @update:model-value="confirmDeleteOverride = null"
+    >
+      <v-card>
+        <v-card-title>Remove override</v-card-title>
+        <v-card-text>
+          Remove <strong>{{ confirmDeleteOverride?.domain }}</strong> from the allowlist?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="confirmDeleteOverride = null"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            :loading="overrideDeleting"
+            @click="removeOverride"
+          >
+            Remove
           </v-btn>
         </v-card-actions>
       </v-card>

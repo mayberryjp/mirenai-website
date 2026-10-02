@@ -3,9 +3,10 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useClientsStore } from "@/stores/clients";
 import { getClientHistory } from "@/services/stats";
+import { findHostByIp, updateHost } from "@/services/hosts";
 import { apiErrorMessage } from "@/services/errors";
 import ClientQueriesChart from "@/components/client-details/ClientQueriesChart.vue";
-import type { ClientHourlyStat, QueryLog } from "@/types/domain";
+import type { ClientHourlyStat, Host, QueryLog } from "@/types/domain";
 
 const route = useRoute();
 const store = useClientsStore();
@@ -15,6 +16,17 @@ const client = computed(() => route.params.client as string);
 const history = ref<ClientHourlyStat[]>([]);
 const historyLoading = ref(true);
 const historyError = ref<string | null>(null);
+
+// Per-client host record (carries the editable flags). Looked up by IP.
+const host = ref<Host | null>(null);
+const hostLoading = ref(true);
+const hostError = ref<string | null>(null);
+const flagSaving = ref(false);
+const flagError = ref<string | null>(null);
+
+// New domain monitoring: true = Include, false = Exclude. Defaults to Include
+// until the host record loads.
+const newDomainMonitoring = computed(() => host.value?.flag_new_domains ?? true);
 
 const summary = computed(() => store.summaryFor(client.value));
 const domainRows = computed<QueryLog[]>(() =>
@@ -42,14 +54,47 @@ async function loadHistory(): Promise<void> {
   }
 }
 
+async function loadHost(): Promise<void> {
+  hostLoading.value = true;
+  hostError.value = null;
+  flagError.value = null;
+  try {
+    host.value = await findHostByIp(client.value);
+  } catch (e) {
+    hostError.value = apiErrorMessage(e);
+    host.value = null;
+  } finally {
+    hostLoading.value = false;
+  }
+}
+
+async function setNewDomainMonitoring(value: boolean): Promise<void> {
+  const current = host.value;
+  if (!current || current.flag_new_domains === value) return;
+  flagSaving.value = true;
+  flagError.value = null;
+  // Optimistic update; revert if the save fails.
+  host.value = { ...current, flag_new_domains: value };
+  try {
+    host.value = await updateHost(current.id, { flag_new_domains: value });
+  } catch (e) {
+    flagError.value = apiErrorMessage(e);
+    host.value = current;
+  } finally {
+    flagSaving.value = false;
+  }
+}
+
 onMounted(() => {
   if (!store.loaded) void store.load();
   void loadHistory();
+  void loadHost();
 });
 
 // Re-fetch when navigating between clients without leaving the route.
 watch(client, () => {
   void loadHistory();
+  void loadHost();
 });
 </script>
 
@@ -80,6 +125,63 @@ watch(client, () => {
         </div>
       </v-card-text>
     </v-card>
+
+    <!-- Per-client controls -->
+    <div class="d-flex flex-wrap ga-4 mb-4">
+      <v-card
+        color="surface-card"
+        class="setting-box"
+      >
+        <v-card-title class="text-subtitle-1">
+          New domain monitoring
+        </v-card-title>
+        <v-divider />
+        <v-card-text>
+          <div class="text-body-2 text-medium-emphasis mb-3">
+            Whether newly seen domains for this client are flagged for monitoring.
+          </div>
+          <v-btn-toggle
+            :model-value="newDomainMonitoring"
+            mandatory
+            divided
+            color="primary"
+            :disabled="hostLoading || flagSaving || !host"
+            @update:model-value="setNewDomainMonitoring"
+          >
+            <v-btn :value="true">
+              Include
+            </v-btn>
+            <v-btn :value="false">
+              Exclude
+            </v-btn>
+          </v-btn-toggle>
+          <div
+            v-if="flagSaving"
+            class="text-caption text-medium-emphasis mt-2"
+          >
+            Saving…
+          </div>
+          <v-alert
+            v-if="flagError"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+          >
+            {{ flagError }}
+          </v-alert>
+          <v-alert
+            v-else-if="hostError"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+          >
+            {{ hostError }}
+          </v-alert>
+        </v-card-text>
+      </v-card>
+    </div>
 
     <!-- Last 100 hours of DNS queries -->
     <div class="mb-4">
@@ -115,6 +217,10 @@ watch(client, () => {
 <style scoped>
 .client-details {
   animation: fadeIn 0.3s ease-in-out;
+}
+
+.setting-box {
+  flex: 0 1 340px;
 }
 
 @keyframes fadeIn {

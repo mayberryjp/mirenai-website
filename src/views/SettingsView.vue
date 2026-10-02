@@ -1,15 +1,32 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed } from "vue";
+import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
-import GeneralSettingsPanel from "@/components/settings/GeneralSettingsPanel.vue";
-import PoliciesPanel from "@/components/settings/PoliciesPanel.vue";
-import UpstreamsPanel from "@/components/settings/UpstreamsPanel.vue";
-import BlocklistsPanel from "@/components/settings/BlocklistsPanel.vue";
 
-// Tabs render vertically on desktop (lg+) and as a horizontal scrollable bar on
-// phones & tablets (< lg), where the narrow rail would otherwise squeeze the form.
+// Each panel is its own child route under /settings; the tab rail just navigates
+// between them. Tabs render vertically on desktop (lg+) and as a horizontal
+// scrollable bar on phones & tablets (< lg), where the narrow rail would
+// otherwise squeeze the form.
 const { lgAndUp } = useDisplay();
-const activeTab = ref("general");
+const route = useRoute();
+
+interface SettingsTab {
+  value: string;
+  title: string;
+  heading: string;
+  routeName: string;
+}
+
+const tabs: SettingsTab[] = [
+  { value: "general", title: "General", heading: "General Settings", routeName: "settings-general" },
+  { value: "policies", title: "Policies", heading: "Policies", routeName: "settings-policies" },
+  { value: "upstreams", title: "Upstreams", heading: "Upstreams", routeName: "settings-upstreams" },
+  { value: "blocklists", title: "Blocklists", heading: "Blocklists", routeName: "settings-blocklists" },
+  { value: "networking", title: "Networking", heading: "Networking", routeName: "settings-networking" }
+];
+
+const activeTab = computed(() => tabs.find((t) => t.routeName === route.name)?.value ?? "general");
+const activeHeading = computed(() => tabs.find((t) => t.routeName === route.name)?.heading ?? "");
 </script>
 
 <template>
@@ -24,57 +41,31 @@ const activeTab = ref("general");
         lg="3"
       >
         <v-tabs
-          v-model="activeTab"
+          :model-value="activeTab"
           :direction="lgAndUp ? 'vertical' : 'horizontal'"
           :show-arrows="!lgAndUp"
           color="primary"
         >
-          <v-tab value="general">
-            General
-          </v-tab>
-          <v-tab value="policies">
-            Policies
-          </v-tab>
-          <v-tab value="upstreams">
-            Upstreams
-          </v-tab>
-          <v-tab value="blocklists">
-            Blocklists
+          <v-tab
+            v-for="tab in tabs"
+            :key="tab.value"
+            :value="tab.value"
+            :to="{ name: tab.routeName }"
+          >
+            {{ tab.title }}
           </v-tab>
         </v-tabs>
       </v-col>
 
-      <!-- Right content -->
+      <!-- Right content: the active child route renders here -->
       <v-col
         cols="12"
         lg="9"
       >
         <v-card-text>
-          <v-window v-model="activeTab">
-            <v-window-item value="general">
-              <h3>General Settings</h3>
-              <v-divider class="my-4" />
-              <GeneralSettingsPanel />
-            </v-window-item>
-
-            <v-window-item value="policies">
-              <h3>Policies</h3>
-              <v-divider class="my-4" />
-              <PoliciesPanel />
-            </v-window-item>
-
-            <v-window-item value="upstreams">
-              <h3>Upstreams</h3>
-              <v-divider class="my-4" />
-              <UpstreamsPanel />
-            </v-window-item>
-
-            <v-window-item value="blocklists">
-              <h3>Blocklists</h3>
-              <v-divider class="my-4" />
-              <BlocklistsPanel />
-            </v-window-item>
-          </v-window>
+          <h3>{{ activeHeading }}</h3>
+          <v-divider class="my-4" />
+          <router-view />
         </v-card-text>
       </v-col>
     </v-row>

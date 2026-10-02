@@ -4,6 +4,10 @@ import type {
   Blocklist,
   BlocklistCreate,
   BlocklistList,
+  BlocklistOverride,
+  BlocklistOverrideCreate,
+  BlocklistOverrideList,
+  BlocklistOverrideResponse,
   BlocklistResponse,
   BlocklistUpdate,
   DomainList,
@@ -49,4 +53,29 @@ export async function listBlocklistDomains(
 export async function refreshBlocklist(id: number): Promise<Blocklist> {
   const res = await api.post<BlocklistResponse>(`/blocklists/${id}/refresh`);
   return res.data.blocklist;
+}
+
+// ---- Overrides (allowlist) ----
+// Exempted domains are stripped from blocklists at download time; a refresh is
+// required before changes take effect.
+export async function listBlocklistOverrides(
+  limit?: number,
+  offset?: number
+): Promise<Page<BlocklistOverride>> {
+  const res = await api.get<BlocklistOverrideList>("/blocklists/overrides", {
+    params: { limit, offset }
+  });
+  return { items: res.data.overrides, total: res.data.total };
+}
+
+export async function createBlocklistOverride(
+  body: BlocklistOverrideCreate
+): Promise<BlocklistOverride> {
+  const res = await api.post<BlocklistOverrideResponse>("/blocklists/overrides", body);
+  return res.data.override;
+}
+
+export async function deleteBlocklistOverride(id: number): Promise<number> {
+  const res = await api.delete<DeleteResult>(`/blocklists/overrides/${id}`);
+  return res.data.deleted;
 }

@@ -77,6 +77,37 @@ export interface BlocklistCreate {
 }
 export type BlocklistUpdate = Partial<BlocklistCreate>;
 
+// ---- Blocklist overrides (allowlist) ----
+// Exempted domains stripped from every blocklist at download time (not at
+// query time) — a reload/refresh is required for changes to take effect.
+export interface BlocklistOverride {
+  id: number;
+  domain: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlocklistOverrideCreate {
+  domain: string;
+}
+
+// ---- Trusted networks ----
+// Source subnets the resolver accepts queries from. With none configured the
+// resolver answers everyone (opt-in). CIDR is validated and canonicalized
+// server-side (10.2.10.5/24 → 10.2.10.0/24); duplicates return 409.
+export interface TrustedNetwork {
+  id: number;
+  cidr: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrustedNetworkCreate {
+  cidr: string;
+  description?: string | null;
+}
+
 // ---- Query log ----
 export interface QueryLog {
   id: number;
@@ -87,6 +118,29 @@ export interface QueryLog {
   last_action: PolicyAction | null;
   first_seen: string;
   last_seen: string;
+}
+
+// ---- Top blocked domains ----
+// Aggregated per-domain block stats served by GET /queries/top-blocked, ranked
+// by blocked-query count (highest first).
+export interface TopBlockedClient {
+  client: string; // source IP
+  count: number; // blocked queries from this client for the domain
+}
+
+export interface TopBlockedMatch {
+  blocklist_id: number;
+  blocklist_name: string;
+  matched_domain: string; // the rule that matched (may be a wildcard parent)
+}
+
+export interface TopBlockedDomain {
+  domain: string;
+  count: number; // total blocked queries across all clients
+  clients: TopBlockedClient[];
+  first_seen: string;
+  last_seen: string;
+  blocklists: TopBlockedMatch[]; // blocklists whose rules matched the domain
 }
 
 // ---- Clients ----
@@ -120,6 +174,27 @@ export interface SiteHourlyStat {
   clients: number;
 }
 
+// ---- Hosts ----
+// Client devices, auto-recorded one row per source IP (see /hosts). The device
+// name and per-client flags are editable; the remaining fields are read-only.
+export interface Host {
+  id: number;
+  ip: string;
+  device_name: string | null;
+  icon: string | null;
+  mac_address: string | null;
+  excluded_from_blocklist: boolean;
+  flag_new_domains: boolean; // true = Include (monitor new domains), false = Exclude
+  query_count: number;
+  first_seen: string;
+  last_seen: string;
+}
+
+// Editable subset accepted by PUT /hosts/{id}.
+export type HostUpdate = Partial<
+  Pick<Host, "device_name" | "icon" | "mac_address" | "excluded_from_blocklist" | "flag_new_domains">
+>;
+
 // ---- Settings ----
 export interface Settings {
   cache_enabled: boolean;
@@ -144,9 +219,20 @@ export type UpstreamList = OkEnvelope & { upstreams: Upstream[]; total: number }
 export type BlocklistResponse = OkEnvelope & { blocklist: Blocklist };
 export type BlocklistList = OkEnvelope & { blocklists: Blocklist[]; total: number };
 
+export type BlocklistOverrideResponse = OkEnvelope & { override: BlocklistOverride };
+export type BlocklistOverrideList = OkEnvelope & { overrides: BlocklistOverride[]; total: number };
+
+export type TrustedNetworkResponse = OkEnvelope & { trusted_network: TrustedNetwork };
+export type TrustedNetworkList = OkEnvelope & { trusted_networks: TrustedNetwork[]; total: number };
+
+export type HostResponse = OkEnvelope & { host: Host };
+export type HostList = OkEnvelope & { hosts: Host[]; total: number };
+
 export type DomainList = OkEnvelope & { domains: string[]; total: number };
 
 export type QueryList = OkEnvelope & { queries: QueryLog[]; total: number };
+
+export type TopBlockedList = OkEnvelope & { domains: TopBlockedDomain[]; total: number };
 
 export type SettingsResponse = OkEnvelope & { settings: Settings };
 

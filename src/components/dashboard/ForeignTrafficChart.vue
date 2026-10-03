@@ -9,7 +9,7 @@ const props = withDefaults(
     error: string | null;
     title?: string;
   }>(),
-  { title: "Foreign Network Traffic" }
+  { title: "Off-Network DNS Requests Blocked" }
 );
 
 // Oldest → newest, capped at the last 100 hourly buckets.

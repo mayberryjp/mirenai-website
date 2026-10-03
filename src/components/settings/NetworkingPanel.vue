@@ -130,6 +130,8 @@ onMounted(() => {
           density="comfortable"
           class="app-table"
           mobile-breakpoint="md"
+          :items-per-page="-1"
+          hide-default-footer
         >
           <template #item.description="{ item }">
             {{ item.description ?? "—" }}

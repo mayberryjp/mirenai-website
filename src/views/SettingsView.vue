@@ -14,6 +14,16 @@ const tabs = [
   { value: "settings-general", label: "General", heading: "General Settings" },
   { value: "settings-upstreams", label: "Upstreams", heading: "Upstream DNS Servers" },
   { value: "settings-blocklists", label: "Blocklists", heading: "Blocklists" },
+  {
+    value: "settings-blocklist-search",
+    label: "Blocklist Search",
+    heading: "Blocklist Search"
+  },
+  {
+    value: "settings-blocklist-activity",
+    label: "Blocklist Activity",
+    heading: "Blocklist Activity"
+  },
   { value: "settings-networking", label: "Networking", heading: "Networking" },
   { value: "settings-advanced", label: "Advanced", heading: "Advanced" }
 ];

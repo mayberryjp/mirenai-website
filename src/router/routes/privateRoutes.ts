@@ -44,6 +44,16 @@ const privateRoutes: RouteRecordRaw[] = [
             component: () => import("@/components/settings/BlocklistsPanel.vue")
           },
           {
+            path: "blocklist-search",
+            name: "settings-blocklist-search",
+            component: () => import("@/components/settings/BlocklistSearchPanel.vue")
+          },
+          {
+            path: "blocklist-activity",
+            name: "settings-blocklist-activity",
+            component: () => import("@/components/settings/BlocklistActivityPanel.vue")
+          },
+          {
             path: "networking",
             name: "settings-networking",
             component: () => import("@/components/settings/NetworkingPanel.vue")

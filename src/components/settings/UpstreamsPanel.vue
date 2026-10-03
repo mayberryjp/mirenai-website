@@ -170,10 +170,7 @@ onMounted(() => {
       :empty="items.length === 0"
       empty-text="No upstream resolvers."
     >
-      <v-sheet
-        rounded="lg"
-        color="#090c10"
-      >
+      <v-card color="surface-card">
         <v-data-table
           :headers="headers"
           :items="items"
@@ -241,7 +238,7 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
-      </v-sheet>
+      </v-card>
     </AsyncState>
 
     <UpstreamRttChart

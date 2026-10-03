@@ -18,7 +18,7 @@ export const useTrustedNetworksStore = defineStore("trustedNetworks", () => {
     loading.value = true;
     error.value = null;
     try {
-      const page = await listTrustedNetworks();
+      const page = await listTrustedNetworks(500);
       items.value = page.items;
       total.value = page.total;
     } catch (e) {

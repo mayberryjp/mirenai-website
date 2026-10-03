@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useTrustedNetworksStore } from "@/stores/trustedNetworks";
 import { getSiteStats } from "@/services/stats";
+import { listForeignClients } from "@/services/foreignClients";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
 import ForeignTrafficChart from "@/components/dashboard/ForeignTrafficChart.vue";
-import type { SiteHourlyStat, TrustedNetwork, TrustedNetworkCreate } from "@/types/domain";
+import type {
+  ForeignClient,
+  SiteHourlyStat,
+  TrustedNetwork,
+  TrustedNetworkCreate
+} from "@/types/domain";
 
 const store = useTrustedNetworksStore();
 const { items, loading, error } = storeToRefs(store);
@@ -15,6 +21,13 @@ const headers = [
   { title: "CIDR", key: "cidr" },
   { title: "Description", key: "description" },
   { title: "", key: "actions", sortable: false, align: "end" as const }
+];
+
+const foreignHeaders = [
+  { title: "Source IP", key: "ip" },
+  { title: "Denied hits", key: "hits", align: "end" as const },
+  { title: "First seen", key: "first_seen" },
+  { title: "Last seen", key: "last_seen" }
 ];
 
 interface NetworkForm {
@@ -92,9 +105,47 @@ async function loadSiteStats(): Promise<void> {
   }
 }
 
+// Denied foreign clients (source IPs outside every trusted network). Fetch the
+// top 100 by last_seen and page through them client-side, 25 per page.
+const FOREIGN_CLIENTS_LIMIT = 100;
+const FOREIGN_CLIENTS_PAGE_SIZE = 25;
+
+const foreignClients = ref<ForeignClient[]>([]);
+const foreignLoading = ref(true);
+const foreignError = ref<string | null>(null);
+const foreignPage = ref(1);
+const foreignPageCount = computed(() =>
+  Math.max(1, Math.ceil(foreignClients.value.length / FOREIGN_CLIENTS_PAGE_SIZE))
+);
+
+async function loadForeignClients(): Promise<void> {
+  foreignLoading.value = true;
+  foreignError.value = null;
+  try {
+    const page = await listForeignClients(FOREIGN_CLIENTS_LIMIT);
+    foreignClients.value = page.items;
+    foreignPage.value = 1;
+  } catch (e) {
+    foreignError.value = apiErrorMessage(e);
+    foreignClients.value = [];
+  } finally {
+    foreignLoading.value = false;
+  }
+}
+
+// Datetimes arrive without an offset (container-local); render that same local
+// wall-clock, matching the dashboard tables (no timezone conversion).
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 onMounted(() => {
   void store.load();
   void loadSiteStats();
+  void loadForeignClients();
 });
 </script>
 
@@ -156,6 +207,55 @@ onMounted(() => {
       :error="siteError"
       class="mt-4"
     />
+
+    <div class="text-subtitle-1 font-weight-medium mt-6 mb-1">
+      Denied foreign clients
+    </div>
+    <p class="text-caption text-medium-emphasis mb-3">
+      Source IPs outside every trusted network whose queries were dropped before parsing, with a
+      running count of denied hits. Newest activity first.
+    </p>
+
+    <AsyncState
+      :loading="foreignLoading"
+      :error="foreignError"
+      :empty="foreignClients.length === 0"
+      empty-text="No foreign clients have been denied."
+    >
+      <v-card color="surface-card">
+        <v-data-table
+          :headers="foreignHeaders"
+          :items="foreignClients"
+          density="comfortable"
+          class="app-table"
+          mobile-breakpoint="md"
+          :items-per-page="FOREIGN_CLIENTS_PAGE_SIZE"
+          :page="foreignPage"
+          hide-default-footer
+        >
+          <template #item.hits="{ item }">
+            {{ item.hits.toLocaleString() }}
+          </template>
+          <template #item.first_seen="{ item }">
+            <span class="date-column">{{ formatDateTime(item.first_seen) }}</span>
+          </template>
+          <template #item.last_seen="{ item }">
+            <span class="date-column">{{ formatDateTime(item.last_seen) }}</span>
+          </template>
+        </v-data-table>
+        <div
+          v-if="foreignPageCount > 1"
+          class="d-flex justify-center pa-2"
+        >
+          <v-pagination
+            :model-value="foreignPage"
+            :length="foreignPageCount"
+            :total-visible="7"
+            @update:model-value="foreignPage = $event"
+          />
+        </div>
+      </v-card>
+    </AsyncState>
 
     <v-dialog
       v-model="dialog"

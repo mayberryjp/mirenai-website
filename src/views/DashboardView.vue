@@ -6,6 +6,7 @@ import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
 import RecentDomainsTable from "@/components/dashboard/RecentDomainsTable.vue";
 import type { RecentNewDomain, RuntimeStats, SiteHourlyStat } from "@/types/domain";
+import type { RouteLocationRaw } from "vue-router";
 
 const clients = useClientsStore();
 
@@ -38,24 +39,36 @@ const siteTotals = computed(() =>
 );
 
 // Top banner: current resolver runtime snapshot (GET /stats/runtime).
-const stats = computed(() => [
+// `to` turns a cube into a shortcut to the matching settings page.
+interface StatCard {
+  label: string;
+  description: string;
+  value: number;
+  color: string;
+  to?: RouteLocationRaw;
+}
+
+const stats = computed<StatCard[]>(() => [
   {
     label: "Cache Size",
     description: `of ${fmt(runtime.value?.cache_capacity ?? 0)}`,
     value: runtime.value?.cache_size ?? 0,
-    color: "text-blue"
+    color: "text-blue",
+    to: { name: "settings-cache" }
   },
   {
     label: "Blocklist Domains",
     description: "In Blocklist",
     value: runtime.value?.blocklist_domains ?? 0,
-    color: "text-green"
+    color: "text-green",
+    to: { name: "settings-blocklists" }
   },
   {
     label: "Upstreams",
     description: "Resolvers",
     value: runtime.value?.upstreams ?? 0,
-    color: "text-blue"
+    color: "text-blue",
+    to: { name: "settings-upstreams" }
   },
   {
     label: "Policies",
@@ -141,7 +154,9 @@ onMounted(() => {
       >
         <v-card
           variant="plain"
+          :to="s.to"
           class="text-center pa-2 pa-sm-4 bg-transparent"
+          :class="{ 'stat-card--link': s.to }"
         >
           <div class="stat-label mb-1">
             {{ s.label }}
@@ -180,6 +195,15 @@ onMounted(() => {
   background-color: #0d1117 !important;
   color: rgba(255, 255, 255, 0.87);
   padding: 5px;
+}
+
+/* Linked cubes act as shortcuts; brighten the label on hover to signal it. */
+.stat-card--link {
+  cursor: pointer;
+}
+
+.stat-card--link:hover .stat-label {
+  color: #ffffff;
 }
 
 .stat-label {

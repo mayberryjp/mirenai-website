@@ -3,9 +3,13 @@ import { computed, onMounted, ref } from "vue";
 import { listTopBlocked } from "@/services/queries";
 import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
+import { useClientsStore } from "@/stores/clients";
 import AsyncState from "@/components/base/AsyncState.vue";
 import BlocklistTrafficChart from "@/components/dashboard/BlocklistTrafficChart.vue";
 import type { SiteHourlyStat, TopBlockedDomain } from "@/types/domain";
+
+// Resolves client IPs to device names (falls back to the IP) in the clients column.
+const clientsStore = useClientsStore();
 
 // Read-only view of the most-blocked domains (GET /queries/top-blocked). Fetch
 // the top 50 and page through them client-side, 25 per page.
@@ -72,6 +76,7 @@ function formatDateTime(iso: string): string {
 onMounted(() => {
   void load();
   void loadSiteStats();
+  if (!clientsStore.loaded) void clientsStore.load();
 });
 </script>
 
@@ -127,8 +132,9 @@ onMounted(() => {
                 size="small"
                 variant="tonal"
                 class="mr-1 mb-1"
+                :title="c.client"
               >
-                {{ c.client }} ({{ c.count.toLocaleString() }})
+                {{ clientsStore.nameFor(c.client) }} ({{ c.count.toLocaleString() }})
               </v-chip>
             </template>
             <span v-else>—</span>

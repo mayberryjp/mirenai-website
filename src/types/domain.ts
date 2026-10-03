@@ -114,6 +114,18 @@ export interface TrustedNetworkCreate {
   description?: string | null;
 }
 
+// ---- Foreign clients ----
+// Source IPs outside every trusted network whose queries were denied before
+// parsing, with a running hit count. Read-only; served by GET /foreign-clients,
+// ordered by last_seen desc.
+export interface ForeignClient {
+  id: number;
+  ip: string;
+  hits: number;
+  first_seen: string; // ISO, container-local wall-clock (no offset)
+  last_seen: string;
+}
+
 // ---- Query log ----
 export interface QueryLog {
   id: number;
@@ -264,6 +276,21 @@ export interface Settings {
 }
 export type SettingsUpdate = Partial<Settings>;
 
+// ---- Cache ----
+// One cached DNS answer currently held by the resolver. Served by GET /cache.
+// Datetimes are container-local wall-clock (no offset — do not treat as UTC).
+export interface CacheEntry {
+  domain: string;
+  qtype: string;
+  qclass: string;
+  response: string;
+  answers: number;
+  ttl: number;
+  remaining_ttl: number;
+  expires_at: string;
+  updated_at: string;
+}
+
 // ---- Single-resource + collection responses ----
 export type PolicyResponse = OkEnvelope & { policy: Policy };
 export type PolicyList = OkEnvelope & { policies: Policy[]; total: number };
@@ -284,6 +311,8 @@ export type BlocklistOverrideList = OkEnvelope & { overrides: BlocklistOverride[
 export type TrustedNetworkResponse = OkEnvelope & { trusted_network: TrustedNetwork };
 export type TrustedNetworkList = OkEnvelope & { trusted_networks: TrustedNetwork[]; total: number };
 
+export type ForeignClientList = OkEnvelope & { foreign_clients: ForeignClient[]; total: number };
+
 export type HostResponse = OkEnvelope & { host: Host };
 export type HostList = OkEnvelope & { hosts: Host[]; total: number };
 
@@ -299,6 +328,13 @@ export type HealthResponse = OkEnvelope & { service: string };
 
 // POST /cache/flush — records a flush request; the worker clears its cache on its next poll.
 export type CacheFlushResponse = OkEnvelope & { requested_at: string };
+
+// GET /cache — current resolver cache contents plus a snapshot timestamp.
+export type CacheEntriesResponse = OkEnvelope & {
+  entries: CacheEntry[];
+  total: number;
+  updated_at: string;
+};
 
 // GET /stats?client=<ip>&hours=<n> — per-client hourly stats.
 export type ClientStatsResponse = OkEnvelope & {

@@ -59,8 +59,8 @@ const privateRoutes: RouteRecordRaw[] = [
             component: () => import("@/components/settings/NetworkingPanel.vue")
           },
           {
-            path: "advanced",
-            name: "settings-advanced",
+            path: "cache",
+            name: "settings-cache",
             component: () => import("@/components/settings/AdvancedPanel.vue")
           }
         ]

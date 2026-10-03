@@ -40,17 +40,22 @@ const selectedActions = ref<PolicyAction[]>([]);
 
 // Client-side filter over this client's query rows: match the search text (domain
 // or query type) AND, when any action chips are selected, the effective policy
-// action shown in the Policy column.
+// action shown in the Policy column. New domains (first seen < 24h) float to the
+// top, then highest hit count first within each group.
 const filteredRows = computed<QueryLog[]>(() => {
   const q = search.value.trim().toLowerCase();
   const actions = selectedActions.value;
-  return props.rows.filter((r) => {
+  const rows = props.rows.filter((r) => {
     if (actions.length) {
       const eff = effectiveAction(r.domain);
       if (!eff || !actions.includes(eff as PolicyAction)) return false;
     }
     if (!q) return true;
     return r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q);
+  });
+  return rows.sort((a, b) => {
+    const newDelta = Number(isNew(b.first_seen)) - Number(isNew(a.first_seen));
+    return newDelta !== 0 ? newDelta : b.count - a.count;
   });
 });
 
@@ -116,6 +121,15 @@ function blockedLabel(on: boolean | undefined | null): string {
 
 function blockedColor(on: boolean | undefined | null): string {
   return on ? "burgundy" : "grey";
+}
+
+// Flag domains first seen within the last 24h. first_seen is container-local
+// wall-clock (no offset); new Date parses it in the same local frame as now.
+const DAY_MS = 24 * 60 * 60 * 1000;
+function isNew(firstSeen: string): boolean {
+  const d = new Date(firstSeen);
+  if (Number.isNaN(d.getTime())) return false;
+  return Date.now() - d.getTime() < DAY_MS;
 }
 
 function effectiveLabel(domain: string): string {
@@ -286,6 +300,21 @@ watch(
       mobile-breakpoint="md"
       :items-per-page="25"
     >
+      <template #item.domain="{ item }">
+        <div class="d-flex align-center ga-2">
+          <span>{{ item.domain }}</span>
+          <v-chip
+            v-if="isNew(item.first_seen)"
+            size="x-small"
+            variant="flat"
+            color="success"
+            class="new-chip"
+          >
+            NEW
+          </v-chip>
+        </div>
+      </template>
+
       <template #item.blocked="{ item }">
         <v-chip
           size="small"
@@ -384,5 +413,10 @@ watch(
 
 .override-cell {
   padding: 4px 0;
+}
+
+.new-chip {
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 </style>

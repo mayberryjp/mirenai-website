@@ -25,7 +25,7 @@ const tabs = [
     heading: "Blocklist Activity"
   },
   { value: "settings-networking", label: "Networking", heading: "Networking" },
-  { value: "settings-advanced", label: "Advanced", heading: "Advanced" }
+  { value: "settings-cache", label: "Cache", heading: "Cache" }
 ];
 
 const heading = computed(

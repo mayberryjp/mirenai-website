@@ -109,7 +109,7 @@ onMounted(() => {
 
     <v-sheet
       rounded="lg"
-      color="#090c10"
+      color="surface-card"
       class="cache-table-card mt-6"
     >
       <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">

@@ -25,6 +25,7 @@ const tabs = [
     heading: "Blocklist Activity"
   },
   { value: "settings-networking", label: "Networking", heading: "Networking" },
+  { value: "settings-local-domains", label: "Local Domains", heading: "Local Domains" },
   { value: "settings-cache", label: "Cache", heading: "Cache" },
   { value: "settings-cache-miss", label: "Cache Miss", heading: "Cache Miss" }
 ];

@@ -114,6 +114,25 @@ onMounted(() => {
 
       <div class="setting-row">
         <div class="setting-name">
+          Drop private PTR
+        </div>
+        <div class="setting-control">
+          <v-switch
+            v-model="form.drop_private_ptr"
+            color="primary"
+            density="compact"
+            hide-details
+            class="control-switch"
+          />
+          <p class="setting-desc">
+            Respond NODATA and don't log RFC1918 PTR requests. DNS entries loaded through local-domains feature excluded.
+          </p>
+        </div>
+      </div>
+      <v-divider />
+
+      <div class="setting-row">
+        <div class="setting-name">
           DNS cache
         </div>
         <div class="setting-control">

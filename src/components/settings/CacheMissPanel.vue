@@ -33,6 +33,7 @@ const reasonOptions: { title: string; value: CacheMissReason | "all" }[] = [
 ];
 
 const headers = [
+  { title: "Client", key: "client" },
   { title: "Domain", key: "domain" },
   { title: "Type", key: "qtype" },
   { title: "Reason", key: "reason" },

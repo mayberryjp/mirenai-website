@@ -59,6 +59,11 @@ const privateRoutes: RouteRecordRaw[] = [
             component: () => import("@/components/settings/NetworkingPanel.vue")
           },
           {
+            path: "local-domains",
+            name: "settings-local-domains",
+            component: () => import("@/components/settings/LocalDomainsPanel.vue")
+          },
+          {
             path: "cache",
             name: "settings-cache",
             component: () => import("@/components/settings/AdvancedPanel.vue")

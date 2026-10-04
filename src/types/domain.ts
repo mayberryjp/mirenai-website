@@ -274,6 +274,7 @@ export interface Settings {
   refresh_seconds: number;
   query_flush_seconds: number;
   log_queries: boolean;
+  drop_private_ptr: boolean;
 }
 export type SettingsUpdate = Partial<Settings>;
 
@@ -297,10 +298,11 @@ export interface CacheEntry {
 export type CacheMissReason = "nxdomain" | "error" | "nodata" | "zero-ttl" | "upstream-failure";
 export type CacheOutcomeReason = "cached" | CacheMissReason;
 
-// One aggregated uncacheable (domain, qtype, reason) row, highest-hits first.
-// Served by GET /cache/uncacheable.
+// One aggregated uncacheable (client, domain, qtype, reason) row, highest-hits
+// first. Served by GET /cache/uncacheable.
 export interface UncacheableRow {
   id: number;
+  client: string; // source IP that made the uncacheable request
   domain: string;
   qtype: string;
   reason: CacheMissReason;
@@ -316,6 +318,42 @@ export interface CacheOutcomeStat {
   hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
   reason: CacheOutcomeReason;
   hits: number;
+}
+
+// ---- Local DNS zones ----
+// A remote zone file (GitHub page, raw .txt, ...) whose DNS records are loaded
+// into the resolver. record_count / last_* are server-computed; the server also
+// derives `name` from the source. Served by /local-zones.
+export interface LocalZone {
+  id: number;
+  name: string;
+  url: string;
+  update_interval_seconds: number;
+  enabled: boolean;
+  record_count: number; // read-only
+  last_downloaded_at: string | null; // read-only
+  last_status: string | null; // read-only, e.g. "ok: 3 records"
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocalZoneCreate {
+  name: string;
+  url: string;
+  update_interval_seconds: number;
+  enabled?: boolean; // default true
+}
+
+// Merged DNS record across all local zones, tagged with its source zone name.
+// Served by GET /local-records (optional ?search= / ?type= filters).
+export interface LocalRecord {
+  id: number;
+  zone_id: number;
+  zone_name: string;
+  name: string;
+  type: string;
+  value: string;
+  ttl: number;
 }
 
 // ---- Single-resource + collection responses ----
@@ -368,6 +406,13 @@ export type UncacheableList = OkEnvelope & { uncacheable: UncacheableRow[]; tota
 
 // GET /stats/cache-outcomes — hourly forwarded-outcome breakdown (long format, one row per hour+reason).
 export type CacheOutcomeStatsResponse = OkEnvelope & { stats: CacheOutcomeStat[]; total: number };
+
+// GET/POST /local-zones, GET/PUT/DELETE /local-zones/{id}, POST /local-zones/{id}/refresh.
+export type LocalZoneResponse = OkEnvelope & { local_zone: LocalZone };
+export type LocalZoneList = OkEnvelope & { local_zones: LocalZone[]; total: number };
+
+// GET /local-records — merged records across all zones (each tagged with zone_name).
+export type LocalRecordList = OkEnvelope & { records: LocalRecord[]; total: number };
 
 // GET /stats?client=<ip>&hours=<n> — per-client hourly stats.
 export type ClientStatsResponse = OkEnvelope & {

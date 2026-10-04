@@ -13,7 +13,7 @@ const props = withDefaults(
 );
 
 // Only the five miss buckets are plotted; "cached" is the good outcome and would
-// dwarf the misses, so it's excluded from this breakdown. Order = stacking order.
+// dwarf the misses, so it's excluded from this breakdown. Order = legend order.
 const MISS_REASONS: { key: CacheMissReason; label: string; color: string }[] = [
   { key: "nxdomain", label: "NXDOMAIN", color: "#ff5a36" },
   { key: "nodata", label: "No Data", color: "#ffc93c" },
@@ -48,15 +48,14 @@ const series = computed(() =>
 const chartOptions = computed(() => ({
   chart: {
     id: "cache-miss-reasons-chart",
-    stacked: true,
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
   colors: MISS_REASONS.map((r) => r.color),
-  fill: { opacity: 0.85 },
-  stroke: { curve: "smooth", width: 1 },
+  fill: { opacity: 1 },
+  stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
@@ -154,7 +153,7 @@ function formatHour(iso: string): string {
         size="28"
         class="mb-2"
       >
-        mdi-chart-areaspline
+        mdi-chart-line
       </v-icon>
       <div class="text-grey">
         No uncacheable responses in the last 100 hours.
@@ -166,7 +165,7 @@ function formatHour(iso: string): string {
       class="chart-wrap"
     >
       <apexchart
-        type="area"
+        type="line"
         height="320"
         :options="chartOptions"
         :series="series"

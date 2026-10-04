@@ -91,10 +91,17 @@ function openEdit(row: Blocklist): void {
 }
 
 async function submit(): Promise<void> {
+  const url = form.url.trim();
+  if (!url) {
+    formError.value = "Source URL is required.";
+    return;
+  }
   saving.value = true;
   formError.value = null;
+  // Backend requires a name, but the form doesn't ask for one — reuse the URL.
   const body: BlocklistCreate = {
-    url: form.url.trim(),
+    name: url,
+    url,
     update_interval_hours: form.update_interval_hours,
     enabled: form.enabled
   };
@@ -269,6 +276,7 @@ onMounted(() => {
           <v-text-field
             v-model="form.url"
             label="Source URL (http/https)"
+            autofocus
           />
           <v-text-field
             v-model.number="form.update_interval_hours"

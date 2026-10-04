@@ -1,5 +1,7 @@
 import api from "@/services/api";
 import type {
+  CacheOutcomeStat,
+  CacheOutcomeStatsResponse,
   ClientStat,
   ClientStatsResponse,
   NewDomainStat,
@@ -65,6 +67,16 @@ export async function getRuntimeStats(): Promise<RuntimeStats> {
 // GET /stats/upstreams?hours=<n> — dense series, one row per (hour, address), null-filled.
 export async function getUpstreamRttStats(hours = 100): Promise<UpstreamRttStat[]> {
   const res = await api.get<UpstreamRttStatsResponse>("/stats/upstreams", {
+    params: { hours }
+  });
+  return res.data.stats;
+}
+
+// Hourly forwarded-outcome breakdown for the cache-miss chart.
+// GET /stats/cache-outcomes?hours=<n> — dense long-format series (6 reasons per
+// hour, zero-filled, newest hour first). Cap 100 hours.
+export async function getCacheOutcomes(hours = 100): Promise<CacheOutcomeStat[]> {
+  const res = await api.get<CacheOutcomeStatsResponse>("/stats/cache-outcomes", {
     params: { hours }
   });
   return res.data.stats;

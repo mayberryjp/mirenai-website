@@ -70,6 +70,7 @@ export interface Blocklist {
 }
 
 export interface BlocklistCreate {
+  name: string;
   url: string;
   update_interval_hours?: number; // default 24, >= 1
   enabled?: boolean; // default true
@@ -291,6 +292,32 @@ export interface CacheEntry {
   updated_at: string;
 }
 
+// Why a forwarded answer could not be cached. Five "miss" buckets; the
+// cache-outcomes feed adds "cached" (answer stored) on top of these.
+export type CacheMissReason = "nxdomain" | "error" | "nodata" | "zero-ttl" | "upstream-failure";
+export type CacheOutcomeReason = "cached" | CacheMissReason;
+
+// One aggregated uncacheable (domain, qtype, reason) row, highest-hits first.
+// Served by GET /cache/uncacheable.
+export interface UncacheableRow {
+  id: number;
+  domain: string;
+  qtype: string;
+  reason: CacheMissReason;
+  last_ttl: number | null; // only "zero-ttl" carries a number (0); otherwise null
+  hits: number;
+  first_seen: string; // ISO, container-local wall-clock (no offset)
+  last_seen: string;
+}
+
+// One (hour, reason) forwarded-outcome bucket. Served by GET /stats/cache-outcomes;
+// hours mode returns a dense series (6 reasons per hour, zero-filled, newest first).
+export interface CacheOutcomeStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  reason: CacheOutcomeReason;
+  hits: number;
+}
+
 // ---- Single-resource + collection responses ----
 export type PolicyResponse = OkEnvelope & { policy: Policy };
 export type PolicyList = OkEnvelope & { policies: Policy[]; total: number };
@@ -335,6 +362,12 @@ export type CacheEntriesResponse = OkEnvelope & {
   total: number;
   updated_at: string;
 };
+
+// GET /cache/uncacheable — forwarded answers that couldn't be cached, per (domain, qtype, reason).
+export type UncacheableList = OkEnvelope & { uncacheable: UncacheableRow[]; total: number };
+
+// GET /stats/cache-outcomes — hourly forwarded-outcome breakdown (long format, one row per hour+reason).
+export type CacheOutcomeStatsResponse = OkEnvelope & { stats: CacheOutcomeStat[]; total: number };
 
 // GET /stats?client=<ip>&hours=<n> — per-client hourly stats.
 export type ClientStatsResponse = OkEnvelope & {

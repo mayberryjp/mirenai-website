@@ -62,6 +62,11 @@ const privateRoutes: RouteRecordRaw[] = [
             path: "cache",
             name: "settings-cache",
             component: () => import("@/components/settings/AdvancedPanel.vue")
+          },
+          {
+            path: "cache-miss",
+            name: "settings-cache-miss",
+            component: () => import("@/components/settings/CacheMissPanel.vue")
           }
         ]
       }

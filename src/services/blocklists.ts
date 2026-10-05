@@ -51,9 +51,13 @@ export async function listBlocklistDomains(
   return { items: res.data.domains, total: res.data.total };
 }
 
-// Synchronous download + reparse; may take seconds. 502 download_failed carries detail.
+// Synchronous download + reparse; large lists can take a few minutes, so override
+// the shared 30s client timeout. 502 download_failed carries detail.
+const REFRESH_TIMEOUT_MS = 240000; // 4 min — on-demand downloads can take up to ~3 min
 export async function refreshBlocklist(id: number): Promise<Blocklist> {
-  const res = await api.post<BlocklistResponse>(`/blocklists/${id}/refresh`);
+  const res = await api.post<BlocklistResponse>(`/blocklists/${id}/refresh`, undefined, {
+    timeout: REFRESH_TIMEOUT_MS
+  });
   return res.data.blocklist;
 }
 

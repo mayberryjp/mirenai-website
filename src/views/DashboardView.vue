@@ -31,10 +31,11 @@ const siteTotals = computed(() =>
       acc.denied += s.denied;
       acc.blocked += s.blocked;
       acc.servfail += s.servfail;
+      acc.local += s.local;
       acc.foreign += s.foreign;
       return acc;
     },
-    { total: 0, forwarded: 0, cached: 0, overridden: 0, denied: 0, blocked: 0, servfail: 0, foreign: 0 }
+    { total: 0, forwarded: 0, cached: 0, overridden: 0, denied: 0, blocked: 0, servfail: 0, local: 0, foreign: 0 }
   )
 );
 
@@ -90,6 +91,7 @@ const trafficChips = computed(() => {
     { label: "Policy Denied", value: t.denied, color: "#f5822a", percent: pct(t.denied) },
     { label: "Blocklist Denied", value: t.blocked, color: "#ff5a36", percent: pct(t.blocked) },
     { label: "Servfail", value: t.servfail, color: "#9aa4b2", percent: pct(t.servfail) },
+    { label: "Local", value: t.local, color: "#e056a0", percent: pct(t.local) },
     { label: "Foreign Network", value: t.foreign, color: "#4a90d9", percent: pct(t.foreign) }
   ];
 });

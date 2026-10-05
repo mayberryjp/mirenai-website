@@ -151,6 +151,13 @@ onMounted(() => {
 
 <template>
   <div>
+    <ForeignTrafficChart
+      :stats="siteStats"
+      :loading="siteLoading"
+      :error="siteError"
+      class="mb-6"
+    />
+
     <p class="text-caption text-medium-emphasis mb-4">
       Only queries whose source IP falls inside one of these subnets are answered — others are
       dropped before parsing. With no networks configured the resolver replies to everyone, so this
@@ -200,13 +207,6 @@ onMounted(() => {
         </v-data-table>
       </v-card>
     </AsyncState>
-
-    <ForeignTrafficChart
-      :stats="siteStats"
-      :loading="siteLoading"
-      :error="siteError"
-      class="mt-4"
-    />
 
     <div class="text-subtitle-1 font-weight-medium mt-6 mb-1">
       Denied foreign clients

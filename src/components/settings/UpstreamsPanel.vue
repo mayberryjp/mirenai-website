@@ -152,6 +152,13 @@ onMounted(() => {
 
 <template>
   <div>
+    <UpstreamRttChart
+      :stats="rttChartStats"
+      :loading="rttChartLoading"
+      :error="rttChartError"
+      class="mb-4"
+    />
+
     <div class="d-flex align-center mb-4">
       <span class="text-medium-emphasis text-body-2">Equal priority upstreams will be load balanced.</span>
       <v-spacer />
@@ -240,13 +247,6 @@ onMounted(() => {
         </v-data-table>
       </v-card>
     </AsyncState>
-
-    <UpstreamRttChart
-      :stats="rttChartStats"
-      :loading="rttChartLoading"
-      :error="rttChartError"
-      class="mt-4"
-    />
 
     <v-dialog
       v-model="dialog"

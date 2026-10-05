@@ -3,12 +3,32 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useLocalZonesStore } from "@/stores/localZones";
 import { listLocalRecords } from "@/services/localZones";
+import { getSiteStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { LocalRecord, LocalZone, LocalZoneCreate } from "@/types/domain";
+import LocalTrafficChart from "@/components/dashboard/LocalTrafficChart.vue";
+import type { LocalRecord, LocalZone, LocalZoneCreate, SiteHourlyStat } from "@/types/domain";
 
 const store = useLocalZonesStore();
 const { items, loading, error, refreshingId } = storeToRefs(store);
+
+// Last 100 hours of locally-answered query volume for the top chart (GET /stats/site).
+const siteStats = ref<SiteHourlyStat[]>([]);
+const siteLoading = ref(true);
+const siteError = ref<string | null>(null);
+
+async function loadSiteStats(): Promise<void> {
+  siteLoading.value = true;
+  siteError.value = null;
+  try {
+    siteStats.value = await getSiteStats(100);
+  } catch (e) {
+    siteError.value = apiErrorMessage(e);
+    siteStats.value = [];
+  } finally {
+    siteLoading.value = false;
+  }
+}
 
 // ---- Record sources (zones) ----
 const zoneHeaders = [
@@ -222,12 +242,20 @@ watch([search, typeFilter], () => {
 
 onMounted(() => {
   void store.load();
+  void loadSiteStats();
   void loadRecords();
 });
 </script>
 
 <template>
   <div>
+    <LocalTrafficChart
+      :stats="siteStats"
+      :loading="siteLoading"
+      :error="siteError"
+      class="mb-6"
+    />
+
     <p class="text-caption text-medium-emphasis mb-4">
       Load DNS records from remote zone files (a GitHub page, a raw text file, etc.) straight into
       the resolver cache. Add the links to fetch, then review the records they loaded below.

@@ -209,6 +209,7 @@ export interface HourlyResultStat {
   denied: number;
   blocked: number;
   servfail: number;
+  local: number; // queries answered from local zone records
   foreign: number; // queries sourced from outside the trusted networks
 }
 

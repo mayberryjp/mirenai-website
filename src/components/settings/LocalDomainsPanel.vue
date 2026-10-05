@@ -167,9 +167,9 @@ function formatUpdated(ts: string | null): string {
 const RECORD_PAGE_SIZE = 25;
 
 const recordHeaders = [
-  { title: "Name", key: "name" },
+  { title: "Request", key: "name" },
   { title: "Type", key: "type" },
-  { title: "Value", key: "value" },
+  { title: "Response", key: "value" },
   { title: "TTL", key: "ttl", align: "end" as const }
 ];
 

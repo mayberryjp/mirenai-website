@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
 
@@ -11,28 +10,16 @@ const { lgAndUp } = useDisplay();
 const route = useRoute();
 
 const tabs = [
-  { value: "settings-general", label: "General", heading: "General Settings" },
-  { value: "settings-upstreams", label: "Upstreams", heading: "Upstream DNS Servers" },
-  { value: "settings-blocklists", label: "Blocklists", heading: "Blocklists" },
-  {
-    value: "settings-blocklist-search",
-    label: "Blocklist Search",
-    heading: "Blocklist Search"
-  },
-  {
-    value: "settings-blocklist-activity",
-    label: "Blocklist Activity",
-    heading: "Blocklist Activity"
-  },
-  { value: "settings-networking", label: "Networking", heading: "Networking" },
-  { value: "settings-local-domains", label: "Local Domains", heading: "Local Domains" },
-  { value: "settings-cache", label: "Cache", heading: "Cache" },
-  { value: "settings-cache-miss", label: "Cache Miss", heading: "Cache Miss" }
+  { value: "settings-general", label: "General" },
+  { value: "settings-upstreams", label: "Upstreams" },
+  { value: "settings-blocklists", label: "Blocklists" },
+  { value: "settings-blocklist-search", label: "Blocklist Search" },
+  { value: "settings-blocklist-activity", label: "Blocklist Activity" },
+  { value: "settings-networking", label: "Networking" },
+  { value: "settings-local-domains", label: "Local Domains" },
+  { value: "settings-cache", label: "Cache" },
+  { value: "settings-cache-miss", label: "Cache Miss" }
 ];
-
-const heading = computed(
-  () => tabs.find((tab) => tab.value === route.name)?.heading ?? ""
-);
 </script>
 
 <template>
@@ -69,8 +56,6 @@ const heading = computed(
         lg="9"
       >
         <v-card-text>
-          <h3>{{ heading }}</h3>
-          <v-divider class="my-4" />
           <router-view />
         </v-card-text>
       </v-col>

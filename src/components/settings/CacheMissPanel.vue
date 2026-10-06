@@ -106,11 +106,6 @@ onMounted(() => {
 
 <template>
   <div>
-    <p class="text-caption text-medium-emphasis mb-4">
-      Forwarded answers the resolver couldn't cache — why lookups keep missing the cache and which
-      domains miss most often.
-    </p>
-
     <CacheMissReasonsChart
       :stats="outcomes"
       :loading="chartLoading"

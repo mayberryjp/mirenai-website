@@ -5,9 +5,12 @@ import type { Page, QueryList, QueryLog, TopBlockedDomain, TopBlockedList } from
 export async function listQueries(
   limit?: number,
   offset?: number,
-  search?: string
+  search?: string,
+  client?: string
 ): Promise<Page<QueryLog>> {
-  const res = await api.get<QueryList>("/queries", { params: { limit, offset, search } });
+  const res = await api.get<QueryList>("/queries", {
+    params: { limit, offset, search, client }
+  });
   return { items: res.data.queries, total: res.data.total };
 }
 

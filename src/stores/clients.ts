@@ -10,7 +10,8 @@ import type { ClientSummary, NewDomainStat, QueryLog } from "@/types/domain";
 // ClientList sidebar and the client detail view.
 export const useClientsStore = defineStore("clients", () => {
   const clients = ref<ClientSummary[]>([]);
-  const rows = ref<QueryLog[]>([]);
+  // Per-client query-log rows, keyed by IP - loaded lazily by the detail view.
+  const rowsByClient = ref<Record<string, QueryLog[]>>({});
   // Map of client IP -> device_name (only entries with a non-empty name).
   const hostNames = ref<Record<string, string>>({});
   // Map of client IP -> icon key (only entries with an icon set).
@@ -50,14 +51,6 @@ export const useClientsStore = defineStore("clients", () => {
       loading.value = false;
     }
 
-    // Best-effort: per-client query-log rows feed the detail view's domain
-    // table, so a /queries failure must not break the client roster.
-    try {
-      rows.value = await listClientQueryRows();
-    } catch {
-      rows.value = [];
-    }
-
     // Best-effort: the alert bars are supplementary, so a /stats/new-domains
     // failure must not break the client roster.
     try {
@@ -76,8 +69,19 @@ export const useClientsStore = defineStore("clients", () => {
     return clients.value.find((c) => c.client === client);
   }
 
+  // Lazily fetch one client's query-log rows (GET /queries?client=<ip>) for the
+  // detail view's domain table. Best-effort: a /queries failure must not break
+  // the page. Keyed by IP so the rows survive navigation between clients.
+  async function loadClientRows(client: string): Promise<void> {
+    try {
+      rowsByClient.value = { ...rowsByClient.value, [client]: await listClientQueryRows(client) };
+    } catch {
+      rowsByClient.value = { ...rowsByClient.value, [client]: [] };
+    }
+  }
+
   function rowsFor(client: string): QueryLog[] {
-    return rows.value.filter((r) => r.client === client);
+    return rowsByClient.value[client] ?? [];
   }
 
   // Display label: the device name when set, otherwise the raw IP.
@@ -133,7 +137,6 @@ export const useClientsStore = defineStore("clients", () => {
 
   return {
     clients,
-    rows,
     hostNames,
     hostIcons,
     hostMacs,
@@ -143,6 +146,7 @@ export const useClientsStore = defineStore("clients", () => {
     total,
     totalQueries,
     load,
+    loadClientRows,
     summaryFor,
     rowsFor,
     nameFor,

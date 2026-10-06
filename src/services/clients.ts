@@ -9,8 +9,9 @@ import type {
 } from "@/types/domain";
 
 // mirenai has no dedicated clients endpoint. The roster is the device inventory
-// from /hosts; per-client query rows come from the query log for the detail view.
-const CLIENT_SCAN_LIMIT = 5000;
+// from /hosts; a single client's query rows come from the query log, filtered
+// by client, when its detail page is opened.
+const CLIENT_QUERY_LIMIT = 5000;
 
 // Build the client roster from /hosts, busiest first to match the sidebar's
 // query-count ordering.
@@ -25,9 +26,10 @@ export function rosterFromHosts(hosts: Host[]): ClientSummary[] {
     .sort((a, b) => b.total_queries - a.total_queries);
 }
 
-// One slice of raw query-log rows, feeding the per-client domain table.
-export async function listClientQueryRows(): Promise<QueryLog[]> {
-  const { items } = await listQueries(CLIENT_SCAN_LIMIT, 0);
+// One client's query-log rows (GET /queries?client=<ip>), feeding the per-client
+// domain table on the detail page.
+export async function listClientQueryRows(client: string): Promise<QueryLog[]> {
+  const { items } = await listQueries(CLIENT_QUERY_LIMIT, 0, undefined, client);
   return items;
 }
 

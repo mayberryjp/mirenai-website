@@ -196,6 +196,7 @@ async function onDelete(): Promise<void> {
 onMounted(() => {
   if (!store.loaded) void store.load();
   if (!settingsStore.settings) void settingsStore.load();
+  void store.loadClientRows(client.value);
   void loadStats();
   void loadMode();
   void loadHost();
@@ -208,6 +209,7 @@ watch(client, () => {
   blocklistError.value = null;
   monitoringError.value = null;
   confirmDelete.value = false;
+  void store.loadClientRows(client.value);
   void loadStats();
   void loadMode();
   void loadHost();

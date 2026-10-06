@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useClientsStore } from "@/stores/clients";
 import { getRecentNewDomains, getRuntimeStats, getSiteStats } from "@/services/stats";
+import { listLocalRecords, listLocalZones } from "@/services/localZones";
 import { apiErrorMessage } from "@/services/errors";
 import SiteTrafficChart from "@/components/dashboard/SiteTrafficChart.vue";
 import RecentDomainsTable from "@/components/dashboard/RecentDomainsTable.vue";
@@ -19,6 +20,10 @@ const recentLoading = ref(true);
 const recentError = ref<string | null>(null);
 
 const runtime = ref<RuntimeStats | null>(null);
+
+// Totals for the two Local Domains cubes (counts only, no table rendered here).
+const localSources = ref(0);
+const localRecords = ref(0);
 
 // Aggregate the already-loaded 100-hour site stats (no extra API calls).
 const siteTotals = computed(() =>
@@ -72,10 +77,18 @@ const stats = computed<StatCard[]>(() => [
     to: { name: "settings-upstreams" }
   },
   {
-    label: "Policies",
-    description: "Rules",
-    value: runtime.value?.policies ?? 0,
-    color: "text-green"
+    label: "Local Sources",
+    description: "Zone files",
+    value: localSources.value,
+    color: "text-green",
+    to: { name: "settings-local-domains" }
+  },
+  {
+    label: "Local Records",
+    description: "DNS records",
+    value: localRecords.value,
+    color: "text-blue",
+    to: { name: "settings-local-domains" }
   }
 ]);
 
@@ -134,11 +147,20 @@ async function loadRuntime(): Promise<void> {
   }
 }
 
+// listLocalZones(1) returns the full source count in `total` with a minimal
+// payload; /local-records has no limit param, so fetch all and count.
+async function loadLocalCounts(): Promise<void> {
+  const [zones, records] = await Promise.allSettled([listLocalZones(1), listLocalRecords()]);
+  localSources.value = zones.status === "fulfilled" ? zones.value.total : 0;
+  localRecords.value = records.status === "fulfilled" ? records.value.total : 0;
+}
+
 onMounted(() => {
   if (!clients.loaded) void clients.load();
   void loadSiteStats();
   void loadRecentDomains();
   void loadRuntime();
+  void loadLocalCounts();
 });
 </script>
 

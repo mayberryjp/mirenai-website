@@ -10,7 +10,7 @@ import LocalTrafficChart from "@/components/dashboard/LocalTrafficChart.vue";
 import type { LocalRecord, LocalZone, LocalZoneCreate, SiteHourlyStat } from "@/types/domain";
 
 const store = useLocalZonesStore();
-const { items, loading, error, refreshingId } = storeToRefs(store);
+const { items, total, loading, error, refreshingId } = storeToRefs(store);
 
 // Last 100 hours of locally-answered query volume for the top chart (GET /stats/site).
 const siteStats = ref<SiteHourlyStat[]>([]);
@@ -266,6 +266,13 @@ onMounted(() => {
       <div class="text-subtitle-1 font-weight-medium">
         Record sources
       </div>
+      <v-chip
+        size="small"
+        variant="tonal"
+        color="primary"
+      >
+        {{ total.toLocaleString() }}
+      </v-chip>
       <v-spacer />
       <v-btn
         color="primary"
@@ -371,6 +378,13 @@ onMounted(() => {
       <div class="text-subtitle-1 font-weight-medium">
         Loaded records
       </div>
+      <v-chip
+        size="small"
+        variant="tonal"
+        color="primary"
+      >
+        {{ records.length.toLocaleString() }}
+      </v-chip>
       <v-spacer />
       <v-btn
         variant="tonal"

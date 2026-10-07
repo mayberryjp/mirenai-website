@@ -67,54 +67,23 @@ onMounted(() => {
 
 <template>
   <div>
-    <v-card
+    <v-sheet
+      rounded="lg"
       color="surface-card"
-      max-width="640"
+      class="cache-table-card"
     >
-      <v-card-text>
-        <v-alert
-          v-if="flushError"
-          type="error"
-          variant="tonal"
-          class="mb-4"
-        >
-          {{ flushError }}
-        </v-alert>
-        <v-alert
-          v-if="flushed"
-          type="success"
-          variant="tonal"
-          class="mb-4"
-        >
-          Cache flush requested. The resolver clears its cache on its next refresh.
-        </v-alert>
-
-        <div class="text-subtitle-1 mb-1">
-          DNS cache
-        </div>
-        <p class="text-medium-emphasis mb-4">
-          Clear the resolver's in-memory DNS cache. The flush is applied by the DNS
-          worker on its next poll, not immediately.
-        </p>
+      <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
+        <span class="text-h6 text-sm-h5 text-md-h4 cache-table-title">Cache Entries</span>
+        <v-spacer />
         <v-btn
           color="primary"
+          height="40"
           :loading="flushing"
           prepend-icon="mdi-cached"
           @click="clearCache"
         >
           Clear DNS Cache
         </v-btn>
-      </v-card-text>
-    </v-card>
-
-    <v-sheet
-      rounded="lg"
-      color="surface-card"
-      class="cache-table-card mt-6"
-    >
-      <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
-        <span class="text-h6 text-sm-h5 text-md-h4 cache-table-title">Cache Entries</span>
-        <v-spacer />
         <v-text-field
           v-model="search"
           prepend-inner-icon="mdi-magnify"
@@ -134,6 +103,25 @@ onMounted(() => {
         />
       </v-card-title>
       <v-divider />
+
+      <v-alert
+        v-if="flushError"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="ma-3"
+      >
+        {{ flushError }}
+      </v-alert>
+      <v-alert
+        v-if="flushed"
+        type="success"
+        variant="tonal"
+        density="compact"
+        class="ma-3"
+      >
+        Cache flush requested. The resolver clears its cache on its next refresh.
+      </v-alert>
 
       <v-alert
         v-if="cacheError"

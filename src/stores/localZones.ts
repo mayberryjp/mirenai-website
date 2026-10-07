@@ -15,6 +15,7 @@ export const useLocalZonesStore = defineStore("localZones", () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const refreshingId = ref<number | null>(null);
+  const refreshingAll = ref(false);
 
   async function load(): Promise<void> {
     loading.value = true;
@@ -52,5 +53,35 @@ export const useLocalZonesStore = defineStore("localZones", () => {
     }
   }
 
-  return { items, total, loading, error, refreshingId, load, create, remove, refresh };
+  // Refresh every zone concurrently, then reload once. Throws a summary when any
+  // failed so the panel can surface it (per-zone 502 detail isn't aggregated).
+  async function refreshAll(): Promise<void> {
+    refreshingAll.value = true;
+    try {
+      const results = await Promise.allSettled(
+        items.value.map((zone) => refreshLocalZone(zone.id))
+      );
+      await load();
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        throw new Error(`${failed} of ${results.length} sources failed to refresh.`);
+      }
+    } finally {
+      refreshingAll.value = false;
+    }
+  }
+
+  return {
+    items,
+    total,
+    loading,
+    error,
+    refreshingId,
+    refreshingAll,
+    load,
+    create,
+    remove,
+    refresh,
+    refreshAll
+  };
 });

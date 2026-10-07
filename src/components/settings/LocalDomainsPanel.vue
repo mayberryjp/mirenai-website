@@ -10,7 +10,7 @@ import LocalTrafficChart from "@/components/dashboard/LocalTrafficChart.vue";
 import type { LocalRecord, LocalZone, LocalZoneCreate, SiteHourlyStat } from "@/types/domain";
 
 const store = useLocalZonesStore();
-const { items, total, loading, error, refreshingId } = storeToRefs(store);
+const { items, total, loading, error, refreshingId, refreshingAll } = storeToRefs(store);
 
 // Last 100 hours of locally-answered query volume for the top chart (GET /stats/site).
 const siteStats = ref<SiteHourlyStat[]>([]);
@@ -133,6 +133,18 @@ async function refresh(zone: LocalZone): Promise<void> {
   } catch (e) {
     // 502 download_failed carries a detail explaining why.
     refreshError.value = apiErrorMessage(e);
+  }
+}
+
+async function refreshAll(): Promise<void> {
+  refreshError.value = null;
+  try {
+    await store.refreshAll();
+  } catch (e) {
+    refreshError.value = apiErrorMessage(e);
+  } finally {
+    // Some zones may have refreshed even on partial failure — reload either way.
+    void loadRecords();
   }
 }
 
@@ -275,6 +287,15 @@ onMounted(() => {
       </v-chip>
       <v-spacer />
       <v-btn
+        variant="tonal"
+        prepend-icon="mdi-refresh"
+        :loading="refreshingAll"
+        :disabled="items.length === 0"
+        @click="refreshAll"
+      >
+        Refresh all
+      </v-btn>
+      <v-btn
         color="primary"
         prepend-icon="mdi-plus"
         @click="openCreate"
@@ -357,6 +378,7 @@ onMounted(() => {
               variant="text"
               size="small"
               :loading="refreshingId === item.id"
+              :disabled="refreshingAll"
               title="Refresh now"
               @click="refresh(item)"
             />

@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useBlocklistsStore } from "@/stores/blocklists";
+import { getBlocklistSizeStats, getRecentBlocklistEntries } from "@/services/blocklists";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { Blocklist, BlocklistCreate } from "@/types/domain";
+import BlocklistSizeChart from "@/components/dashboard/BlocklistSizeChart.vue";
+import type {
+  Blocklist,
+  BlocklistCreate,
+  BlocklistSizeStat,
+  RecentBlocklistEntry
+} from "@/types/domain";
 
 const store = useBlocklistsStore();
 const { items, loading, error, refreshingId } = storeToRefs(store);
@@ -16,6 +23,11 @@ const headers = [
   { title: "Last updated", key: "last_downloaded_at" },
   { title: "Status", key: "last_status" },
   { title: "Actions", key: "actions", sortable: false, align: "end" as const }
+];
+
+const entryHeaders = [
+  { title: "Domain", key: "domain" },
+  { title: "First seen", key: "first_seen" }
 ];
 
 // Combined enabled + status: a disabled list reads "disabled"; otherwise the
@@ -145,13 +157,67 @@ async function remove(): Promise<void> {
   }
 }
 
+// ---- Total blocklist size over time (GET /blocklists/size-history) ----
+// Read-only chart feed; inline refs, not the store.
+const sizeStats = ref<BlocklistSizeStat[]>([]);
+const sizeLoading = ref(true);
+const sizeError = ref<string | null>(null);
+
+async function loadSizeStats(): Promise<void> {
+  sizeLoading.value = true;
+  sizeError.value = null;
+  try {
+    sizeStats.value = await getBlocklistSizeStats(100);
+  } catch (e) {
+    sizeError.value = apiErrorMessage(e);
+    sizeStats.value = [];
+  } finally {
+    sizeLoading.value = false;
+  }
+}
+
+// ---- New blocklist entries, newest first-seen first (GET /blocklists/recent) ----
+// Fetch the top rows and page client-side, 25 per page.
+const RECENT_ENTRIES_LIMIT = 200;
+const ENTRIES_PAGE_SIZE = 25;
+const recentEntries = ref<RecentBlocklistEntry[]>([]);
+const entriesLoading = ref(true);
+const entriesError = ref<string | null>(null);
+const entriesPage = ref(1);
+const entriesPageCount = computed(() =>
+  Math.max(1, Math.ceil(recentEntries.value.length / ENTRIES_PAGE_SIZE))
+);
+
+async function loadRecentEntries(): Promise<void> {
+  entriesLoading.value = true;
+  entriesError.value = null;
+  try {
+    recentEntries.value = await getRecentBlocklistEntries(RECENT_ENTRIES_LIMIT);
+    entriesPage.value = 1;
+  } catch (e) {
+    entriesError.value = apiErrorMessage(e);
+    recentEntries.value = [];
+  } finally {
+    entriesLoading.value = false;
+  }
+}
+
 onMounted(() => {
   void store.load();
+  void loadSizeStats();
+  void loadRecentEntries();
 });
 </script>
 
 <template>
   <div>
+    <BlocklistSizeChart
+      :stats="sizeStats"
+      :loading="sizeLoading"
+      :error="sizeError"
+      class="mb-6"
+    />
+
     <div class="d-flex align-center mb-4 ga-3">
       <div class="text-body-2 text-medium-emphasis">
         Domain blocklists are downloaded and refreshed on a schedule.
@@ -255,6 +321,48 @@ onMounted(() => {
             />
           </template>
         </v-data-table>
+      </v-card>
+    </AsyncState>
+
+    <div class="text-subtitle-1 font-weight-medium mt-6 mb-1">
+      New blocklist entries
+    </div>
+    <p class="text-caption text-medium-emphasis mb-3">
+      Domains most recently added across all blocklists, newest first seen first.
+    </p>
+
+    <AsyncState
+      :loading="entriesLoading"
+      :error="entriesError"
+      :empty="recentEntries.length === 0"
+      empty-text="No new blocklist entries recorded."
+    >
+      <v-card color="surface-card">
+        <v-data-table
+          :headers="entryHeaders"
+          :items="recentEntries"
+          density="compact"
+          class="app-table"
+          mobile-breakpoint="md"
+          :items-per-page="ENTRIES_PAGE_SIZE"
+          :page="entriesPage"
+          hide-default-footer
+        >
+          <template #item.first_seen="{ item }">
+            <span class="date-column">{{ formatUpdated(item.first_seen) }}</span>
+          </template>
+        </v-data-table>
+        <div
+          v-if="entriesPageCount > 1"
+          class="d-flex justify-center pa-2"
+        >
+          <v-pagination
+            :model-value="entriesPage"
+            :length="entriesPageCount"
+            :total-visible="7"
+            @update:model-value="entriesPage = $event"
+          />
+        </div>
       </v-card>
     </AsyncState>
 

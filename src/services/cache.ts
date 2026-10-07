@@ -1,4 +1,5 @@
 import api from "@/services/api";
+import type { DeleteResult } from "@/types/api";
 import type {
   CacheEntriesResponse,
   CacheEntry,
@@ -33,4 +34,11 @@ export async function listUncacheable(
     params: { reason, limit, offset }
   });
   return { items: res.data.uncacheable, total: res.data.total };
+}
+
+// DELETE /cache/uncacheable — clears every recorded uncacheable row (returns
+// { deleted: <n> }); rows re-accumulate as new forwarded answers can't be cached.
+export async function purgeUncacheable(): Promise<number> {
+  const res = await api.delete<DeleteResult>("/cache/uncacheable");
+  return res.data.deleted;
 }

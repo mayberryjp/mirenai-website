@@ -11,9 +11,13 @@ import type {
   BlocklistOverrideResponse,
   BlocklistResponse,
   BlocklistSearchResponse,
+  BlocklistSizeStat,
+  BlocklistSizeStatsResponse,
   BlocklistUpdate,
   DomainList,
-  Page
+  Page,
+  RecentBlocklistEntriesResponse,
+  RecentBlocklistEntry
 } from "@/types/domain";
 
 export async function listBlocklists(limit?: number, offset?: number): Promise<Page<Blocklist>> {
@@ -96,4 +100,22 @@ export async function createBlocklistOverride(
 export async function deleteBlocklistOverride(id: number): Promise<number> {
   const res = await api.delete<DeleteResult>(`/blocklists/overrides/${id}`);
   return res.data.deleted;
+}
+
+// Hourly total count of domains across all blocklists for the blocklists-page size chart.
+// GET /blocklists/size-history?hours=<n> — newest hour first; the chart re-sorts oldest → newest.
+export async function getBlocklistSizeStats(hours = 100): Promise<BlocklistSizeStat[]> {
+  const res = await api.get<BlocklistSizeStatsResponse>("/blocklists/size-history", {
+    params: { hours }
+  });
+  return res.data.size_history;
+}
+
+// Most recently first-seen blocklist domains for the "new blocklist entries" table.
+// GET /blocklists/recent?limit=<n> — ordered newest-first-seen first.
+export async function getRecentBlocklistEntries(limit = 100): Promise<RecentBlocklistEntry[]> {
+  const res = await api.get<RecentBlocklistEntriesResponse>("/blocklists/recent", {
+    params: { limit }
+  });
+  return res.data.domains;
 }

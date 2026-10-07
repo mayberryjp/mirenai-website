@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { listUncacheable } from "@/services/cache";
+import { listUncacheable, purgeUncacheable } from "@/services/cache";
 import { getCacheOutcomes } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
@@ -71,6 +71,31 @@ async function loadRows(): Promise<void> {
   }
 }
 
+// Purge clears the entire uncacheable table (DELETE /cache/uncacheable), ignoring
+// the reason filter; confirm first, then reload to show the now-empty table.
+const purgeDialog = ref(false);
+const purging = ref(false);
+const purgeError = ref<string | null>(null);
+
+function openPurge(): void {
+  purgeError.value = null;
+  purgeDialog.value = true;
+}
+
+async function purge(): Promise<void> {
+  purging.value = true;
+  purgeError.value = null;
+  try {
+    await purgeUncacheable();
+    purgeDialog.value = false;
+    await loadRows();
+  } catch (e) {
+    purgeError.value = apiErrorMessage(e);
+  } finally {
+    purging.value = false;
+  }
+}
+
 // ---- Reasons chart (GET /stats/cache-outcomes) ----
 const outcomes = ref<CacheOutcomeStat[]>([]);
 const chartLoading = ref(true);
@@ -118,6 +143,14 @@ onMounted(() => {
         Uncacheable domains
       </div>
       <v-spacer />
+      <v-btn
+        variant="tonal"
+        color="error"
+        prepend-icon="mdi-delete-sweep"
+        @click="openPurge"
+      >
+        Purge
+      </v-btn>
       <v-select
         v-model="reasonFilter"
         :items="reasonOptions"
@@ -128,14 +161,6 @@ onMounted(() => {
         class="reason-filter"
         @update:model-value="loadRows"
       />
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        @click="loadRows"
-      >
-        Refresh
-      </v-btn>
     </div>
 
     <AsyncState
@@ -190,6 +215,43 @@ onMounted(() => {
         </div>
       </v-card>
     </AsyncState>
+
+    <v-dialog
+      v-model="purgeDialog"
+      max-width="420"
+    >
+      <v-card>
+        <v-card-title>Purge uncacheable rows</v-card-title>
+        <v-card-text>
+          <v-alert
+            v-if="purgeError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ purgeError }}
+          </v-alert>
+          Delete all recorded uncacheable domains? This clears the entire table
+          regardless of the current reason filter.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="purgeDialog = false"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            :loading="purging"
+            @click="purge"
+          >
+            Purge
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 

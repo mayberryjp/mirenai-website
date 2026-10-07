@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useTrustedNetworksStore } from "@/stores/trustedNetworks";
 import { getSiteStats } from "@/services/stats";
-import { listForeignClients } from "@/services/foreignClients";
+import { deleteForeignClient, listForeignClients } from "@/services/foreignClients";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
 import ForeignTrafficChart from "@/components/dashboard/ForeignTrafficChart.vue";
@@ -27,7 +27,8 @@ const foreignHeaders = [
   { title: "Source IP", key: "ip" },
   { title: "Denied hits", key: "hits", align: "end" as const },
   { title: "First seen", key: "first_seen" },
-  { title: "Last seen", key: "last_seen" }
+  { title: "Last seen", key: "last_seen" },
+  { title: "", key: "actions", sortable: false, align: "end" as const }
 ];
 
 interface NetworkForm {
@@ -130,6 +131,35 @@ async function loadForeignClients(): Promise<void> {
     foreignClients.value = [];
   } finally {
     foreignLoading.value = false;
+  }
+}
+
+// Foreign-client deletion — read-only table, so the row is spliced out locally
+// on success rather than re-fetching. The error surfaces inside the dialog.
+const confirmDeleteForeign = ref<ForeignClient | null>(null);
+const deletingForeign = ref(false);
+const foreignDeleteError = ref<string | null>(null);
+
+function askDeleteForeign(client: ForeignClient): void {
+  foreignDeleteError.value = null;
+  confirmDeleteForeign.value = client;
+}
+
+async function removeForeignClient(): Promise<void> {
+  const target = confirmDeleteForeign.value;
+  if (!target) return;
+  deletingForeign.value = true;
+  foreignDeleteError.value = null;
+  try {
+    await deleteForeignClient(target.id);
+    foreignClients.value = foreignClients.value.filter((c) => c.id !== target.id);
+    // Clamp the page if the last row on the last page was removed.
+    if (foreignPage.value > foreignPageCount.value) foreignPage.value = foreignPageCount.value;
+    confirmDeleteForeign.value = null;
+  } catch (e) {
+    foreignDeleteError.value = apiErrorMessage(e);
+  } finally {
+    deletingForeign.value = false;
   }
 }
 
@@ -242,6 +272,16 @@ onMounted(() => {
           <template #item.last_seen="{ item }">
             <span class="date-column">{{ formatDateTime(item.last_seen) }}</span>
           </template>
+          <template #item.actions="{ item }">
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              size="small"
+              color="error"
+              title="Delete foreign client"
+              @click="askDeleteForeign(item)"
+            />
+          </template>
         </v-data-table>
         <div
           v-if="foreignPageCount > 1"
@@ -323,6 +363,44 @@ onMounted(() => {
             color="error"
             :loading="deleting"
             @click="remove"
+          >
+            Delete
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog
+      :model-value="confirmDeleteForeign !== null"
+      max-width="420"
+      @update:model-value="confirmDeleteForeign = null"
+    >
+      <v-card>
+        <v-card-title>Delete foreign client</v-card-title>
+        <v-card-text>
+          <v-alert
+            v-if="foreignDeleteError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{ foreignDeleteError }}
+          </v-alert>
+          Delete denied foreign client <strong>{{ confirmDeleteForeign?.ip }}</strong> and its
+          recorded denied-hit history?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="confirmDeleteForeign = null"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            :loading="deletingForeign"
+            @click="removeForeignClient"
           >
             Delete
           </v-btn>

@@ -263,6 +263,22 @@ export interface UpstreamRttStat {
   max_ms: number | null; // null when samples === 0
 }
 
+// Hourly total count of domains across all blocklists, for the blocklists-page
+// size chart. Served by GET /blocklists/size-history.
+export interface BlocklistSizeStat {
+  hour_start: string; // ISO hour bucket, container-local wall-clock (no offset)
+  domains: number; // total blocklisted domains across all sources at that hour
+}
+
+// A domain recently added to a blocklist, for the "new blocklist entries" table.
+// Served by GET /blocklists/recent.
+export interface RecentBlocklistEntry {
+  domain: string;
+  blocklist_id: number;
+  blocklist_name: string | null; // null only if the config row is gone
+  first_seen: string; // ISO, container-local wall-clock (no offset)
+}
+
 // ---- Settings ----
 export interface Settings {
   cache_enabled: boolean;
@@ -436,6 +452,18 @@ export type NewDomainStatsResponse = OkEnvelope & {
 // GET /stats/new-domains/recent[?limit=<n>] — most recently first-seen (client, domain) pairs.
 export type RecentNewDomainsResponse = OkEnvelope & {
   domains: RecentNewDomain[];
+  total: number;
+};
+
+// GET /blocklists/size-history — hourly total blocklisted-domain counts (newest hour first).
+export type BlocklistSizeStatsResponse = OkEnvelope & {
+  size_history: BlocklistSizeStat[];
+  total: number;
+};
+
+// GET /blocklists/recent — most recently first-seen blocklist domains.
+export type RecentBlocklistEntriesResponse = OkEnvelope & {
+  domains: RecentBlocklistEntry[];
   total: number;
 };
 

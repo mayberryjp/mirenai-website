@@ -169,6 +169,7 @@ export interface TopBlockedDomain {
 export interface ClientSummary {
   client: string; // IP address
   total_queries: number; // sum of QueryLog.count
+  queries_500h: number; // queries in the last 500h (Host "500h_queries"); client-list denominator
   domain_count: number; // distinct domains seen
   last_seen: string | null; // most recent last_seen across the client's rows
 }
@@ -196,6 +197,7 @@ export interface Host {
   excluded_from_blocklist: boolean; // writable via PUT /hosts/{id}; true = bypass the blocklist
   flag_new_domains: boolean; // writable; true = include this client's new domains in monitoring
   query_count: number; // read-only
+  "500h_queries": number; // read-only; queries seen in the last 500 hours
   first_seen: string; // read-only
   last_seen: string; // read-only
 }

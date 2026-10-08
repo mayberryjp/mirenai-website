@@ -38,20 +38,20 @@ function newDomainCount(client: string): number {
 }
 
 // Filtered roster ordered by the active sort toggle: new-domain volume by
-// default, or raw query count. Each metric tie-breaks on the other.
+// default, or 500h query count. Each metric tie-breaks on the other.
 const sortedClients = computed(() => {
   const list = [...filteredClients.value];
   if (sortMode.value === "queries") {
     return list.sort(
       (a, b) =>
-        b.total_queries - a.total_queries ||
+        b.queries_500h - a.queries_500h ||
         newDomainCount(b.client) - newDomainCount(a.client)
     );
   }
   return list.sort(
     (a, b) =>
       newDomainCount(b.client) - newDomainCount(a.client) ||
-      b.total_queries - a.total_queries
+      b.queries_500h - a.queries_500h
   );
 });
 
@@ -228,10 +228,10 @@ onMounted(() => {
                   class="ml-2"
                 />
 
-                <!-- New domains (orange) / total queries, right-aligned -->
+                <!-- New domains (orange) / queries in the last 500h, right-aligned -->
                 <div class="threat-score-text">
                   <span class="new-domain-count">{{ formatCount(newDomainCount(c.client)) }}</span>
-                  <span class="count-divider">/</span>{{ formatCount(c.total_queries) }}
+                  <span class="count-divider">/</span>{{ formatCount(c.queries_500h) }}
                 </div>
               </div>
             </v-list-item>

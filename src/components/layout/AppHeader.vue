@@ -42,6 +42,7 @@ const logoError = ref(false);
       />
       <span class="product-name text-subtitle-1 text-lg-h5">
         Miren
+        <span class="product-katakana">ミレナイ</span>
         <span class="product-bar tagline">|</span>
         <span class="tagline-text tagline">Know Your Network</span>
       </span>
@@ -158,6 +159,14 @@ const logoError = ref(false);
   line-height: 1.4;
   letter-spacing: 0.05em !important;
   white-space: nowrap;
+}
+
+/* Katakana accent flanking the product name (ミレナイ = "Mirenai") */
+.product-katakana {
+  color: #f5a623;
+  font-weight: 700;
+  font-size: 0.8em;
+  letter-spacing: 0.1em !important;
 }
 
 .product-bar {

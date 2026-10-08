@@ -20,6 +20,7 @@ export function rosterFromHosts(hosts: Host[]): ClientSummary[] {
     .map((h) => ({
       client: h.ip,
       total_queries: h.query_count,
+      queries_500h: h["500h_queries"] ?? 0,
       domain_count: 0,
       last_seen: h.last_seen
     }))

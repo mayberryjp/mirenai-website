@@ -8,7 +8,8 @@ import {
 } from "@/services/policies";
 import { apiErrorMessage } from "@/services/errors";
 import ActionFilter from "@/components/base/ActionFilter.vue";
-import type { ClientMode, Policy, PolicyAction, QueryLog } from "@/types/domain";
+import { ACTION_COLORS } from "@/constants/actions";
+import type { ClientMode, LoggedAction, Policy, PolicyAction, QueryLog } from "@/types/domain";
 
 const props = defineProps<{
   client: string;
@@ -36,7 +37,7 @@ const headers = [
 ];
 
 const search = ref("");
-const selectedActions = ref<PolicyAction[]>([]);
+const selectedActions = ref<LoggedAction[]>([]);
 
 // Client-side filter over this client's query rows: match the search text (domain
 // or query type) AND, when any action chips are selected, the effective policy
@@ -48,7 +49,7 @@ const filteredRows = computed<QueryLog[]>(() => {
   const rows = props.rows.filter((r) => {
     if (actions.length) {
       const eff = effectiveAction(r.domain);
-      if (!eff || !actions.includes(eff as PolicyAction)) return false;
+      if (!eff || !actions.includes(eff as LoggedAction)) return false;
     }
     if (!q) return true;
     return r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q);
@@ -102,11 +103,11 @@ function actionLabel(action: string | null): string {
 function actionColor(action: string | null): string {
   switch (action) {
     case "deny":
-      return "error"; // Policy Denied — red
+      return ACTION_COLORS.deny; // Policy Denied
     case "override":
-      return "warning"; // Spoof — orange
+      return ACTION_COLORS.override; // Spoof
     case "blocklist":
-      return "burgundy"; // Blocklist Denied — deep red
+      return ACTION_COLORS.blocklist; // Blocklist Denied
     default:
       return "grey"; // Allow / Default / none
   }

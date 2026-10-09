@@ -4,7 +4,8 @@ import { useClientsStore } from "@/stores/clients";
 import { usePoliciesStore } from "@/stores/policies";
 import PolicyControl from "@/components/base/PolicyControl.vue";
 import ActionFilter from "@/components/base/ActionFilter.vue";
-import type { PolicyAction, RecentNewDomain } from "@/types/domain";
+import { loggedActionColor, loggedActionLabel } from "@/constants/actions";
+import type { LoggedAction, RecentNewDomain } from "@/types/domain";
 
 const props = withDefaults(
   defineProps<{
@@ -20,7 +21,7 @@ const clients = useClientsStore();
 const policies = usePoliciesStore();
 
 const search = ref("");
-const selectedActions = ref<PolicyAction[]>([]);
+const selectedActions = ref<LoggedAction[]>([]);
 
 // Client-side filter over the loaded rows: match the search text (domain, client
 // IP, or resolved device name) AND, when any action chips are selected, the row's
@@ -43,42 +44,13 @@ const filteredRows = computed<RecentNewDomain[]>(() => {
 const headers = [
   { title: "Client", key: "client" },
   { title: "Domain", key: "domain" },
+  { title: "Type", key: "last_qtype" },
   { title: "Blocklist", key: "blocked", sortable: false },
   { title: "Action", key: "last_action" },
   { title: "Policy", key: "policy", sortable: false },
   { title: "First Seen", key: "first_seen" }
 ];
 
-// Map the policy action to the same label/colour as the client policy table.
-function actionLabel(action: string | null): string {
-  switch (action) {
-    case "forward":
-      return "Allow";
-    case "deny":
-      return "Policy Denied";
-    case "override":
-      return "Spoof";
-    case "blocklist":
-      return "Blocklist Denied";
-    case "default":
-      return "Default";
-    default:
-      return "—";
-  }
-}
-
-function actionColor(action: string | null): string {
-  switch (action) {
-    case "deny":
-      return "error"; // Policy Denied — red
-    case "override":
-      return "warning"; // Spoof — orange
-    case "blocklist":
-      return "burgundy"; // Blocklist Denied — deep red
-    default:
-      return "grey"; // Allow / Default / none
-  }
-}
 
 // Blocklist membership of the queried domain (API returns a simple boolean).
 function blockedLabel(on: boolean | undefined | null): string {
@@ -114,7 +86,7 @@ onMounted(() => {
     <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 recent-domains-title">{{ title }}</span>
       <v-spacer />
-      <ActionFilter v-model="selectedActions" />
+      <ActionFilter v-model="selectedActions" logged />
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
@@ -168,10 +140,14 @@ onMounted(() => {
         <v-chip
           size="small"
           variant="tonal"
-          :color="actionColor(item.last_action)"
+          :color="loggedActionColor(item.last_action)"
         >
-          {{ actionLabel(item.last_action) }}
+          {{ loggedActionLabel(item.last_action) }}
         </v-chip>
+      </template>
+
+      <template #item.last_qtype="{ item }">
+        {{ item.last_qtype ?? "—" }}
       </template>
 
       <template #item.policy="{ item }">

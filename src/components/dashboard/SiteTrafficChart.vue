@@ -47,7 +47,7 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
-  colors: ["#2ec4a0", "#7b61ff", "#ffc93c", "#f5822a", "#ff5a36", "#9aa4b2", "#e056a0", "#4a90d9"],
+  colors: ["#7b61ff", "#2ec4a0", "#ffc93c", "#f5822a", "#ff5a36", "#9aa4b2", "#e056a0", "#4a90d9"],
   fill: { opacity: 1 },
   stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },

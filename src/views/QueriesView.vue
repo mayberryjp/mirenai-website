@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import { useQueriesStore } from "@/stores/queries";
 import { useClientsStore } from "@/stores/clients";
 import AsyncState from "@/components/base/AsyncState.vue";
+import { loggedActionColor, loggedActionLabel } from "@/constants/actions";
 
 const store = useQueriesStore();
 const clients = useClientsStore();
@@ -119,7 +120,13 @@ onMounted(() => {
             </v-chip>
           </template>
           <template #item.last_action="{ item }">
-            {{ item.last_action ?? "—" }}
+            <v-chip
+              size="small"
+              variant="tonal"
+              :color="loggedActionColor(item.last_action)"
+            >
+              {{ loggedActionLabel(item.last_action) }}
+            </v-chip>
           </template>
           <template #item.last_seen="{ item }">
             <span class="date-column">{{ item.last_seen }}</span>

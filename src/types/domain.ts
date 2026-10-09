@@ -5,6 +5,8 @@ import type { OkEnvelope } from "@/types/api";
 
 // ---- Policies ----
 export type PolicyAction = "forward" | "override" | "deny" | "blocklist";
+// Actions the resolver can record in the query log; only PolicyAction values are valid for policies.
+export type LoggedAction = PolicyAction | "nodata" | "local" | "forward-cache" | "servfail";
 
 export interface Policy {
   id: number;
@@ -134,7 +136,7 @@ export interface QueryLog {
   domain: string;
   qtype: string;
   count: number;
-  last_action: PolicyAction | null;
+  last_action: LoggedAction | null;
   blocked?: boolean; // true = domain is on a blocklist
   first_seen: string;
   last_seen: string;
@@ -242,7 +244,8 @@ export interface RecentNewDomain {
   client: string;
   domain: string;
   first_seen: string; // ISO, container-local wall-clock (no offset)
-  last_action: PolicyAction | null; // action taken (forward=Allow, deny=Block, …); null = default/none
+  last_action: LoggedAction | null; // action taken (forward=Allow, deny=Block, …); null = default/none
+  last_qtype: string | null; // query type of the row that supplied last_action; null = no query-log row
   blocked?: boolean; // true = domain is on a blocklist
 }
 

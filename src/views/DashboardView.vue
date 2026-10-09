@@ -98,8 +98,8 @@ const trafficChips = computed(() => {
   const t = siteTotals.value;
   const pct = (n: number): number => (t.total > 0 ? (n / t.total) * 100 : 0);
   return [
-    { label: "Forwarded", value: t.forwarded, color: "#2ec4a0", percent: pct(t.forwarded) },
-    { label: "Cached", value: t.cached, color: "#7b61ff", percent: pct(t.cached) },
+    { label: "Forwarded", value: t.forwarded, color: "#7b61ff", percent: pct(t.forwarded) },
+    { label: "Cached", value: t.cached, color: "#2ec4a0", percent: pct(t.cached) },
     { label: "Spoofed", value: t.overridden, color: "#ffc93c", percent: pct(t.overridden) },
     { label: "Policy Denied", value: t.denied, color: "#f5822a", percent: pct(t.denied) },
     { label: "Blocklist Denied", value: t.blocked, color: "#ff5a36", percent: pct(t.blocked) },

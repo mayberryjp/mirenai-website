@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   createPolicy,
   deletePolicy,
@@ -8,6 +8,7 @@ import {
 } from "@/services/policies";
 import { apiErrorMessage } from "@/services/errors";
 import ActionFilter from "@/components/base/ActionFilter.vue";
+import PolicyMenu from "@/components/base/PolicyMenu.vue";
 import { ACTION_COLORS } from "@/constants/actions";
 import type { ClientMode, LoggedAction, Policy, PolicyAction, QueryLog } from "@/types/domain";
 
@@ -18,13 +19,6 @@ const props = defineProps<{
 }>();
 
 type Choice = "inherit" | "allow" | "block" | "spoof";
-
-const choiceItems = [
-  { title: "Inherit", value: "inherit" },
-  { title: "Allow", value: "allow" },
-  { title: "Block", value: "block" },
-  { title: "Spoof", value: "spoof" }
-];
 
 const headers = [
   { title: "Domain", key: "domain" },
@@ -64,10 +58,6 @@ const policies = ref<Policy[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const savingDomains = ref(new Set<string>());
-// Per-row edit drafts, keyed by domain+qtype so editing one query type doesn't
-// pull the other rows for the same domain into edit mode.
-const choiceDrafts = reactive<Record<string, Choice>>({});
-const spoofDrafts = reactive<Record<string, string>>({});
 
 // Exact-domain policies for this client (the "*" row is the client-level mode).
 const policyByDomain = computed(() => {
@@ -162,20 +152,7 @@ function choiceFor(domain: string): Choice {
   return "inherit";
 }
 
-// Draft key: policies are per-domain, but the table has one row per (domain,
-// qtype), so drafts are tracked per row to keep their edit state independent.
-function rowKey(item: QueryLog): string {
-  return `${item.domain}|${item.qtype}`;
-}
-
-function selectedChoice(item: QueryLog): Choice {
-  return choiceDrafts[rowKey(item)] ?? choiceFor(item.domain);
-}
-
-function spoofResponse(item: QueryLog): string {
-  return spoofDrafts[rowKey(item)] ?? policyFor(item.domain)?.override_response ?? "";
-}
-
+// Policies are per-domain, so rows sharing a domain share one control state.
 function isSaving(domain: string): boolean {
   return savingDomains.value.has(domain);
 }
@@ -199,18 +176,6 @@ function setSaving(domain: string, on: boolean): void {
   if (on) next.add(domain);
   else next.delete(domain);
   savingDomains.value = next;
-}
-
-function onChoice(item: QueryLog, choice: Choice): void {
-  const key = rowKey(item);
-  choiceDrafts[key] = choice;
-  if (choice === "spoof") {
-    if (spoofDrafts[key] === undefined) {
-      spoofDrafts[key] = policyFor(item.domain)?.override_response ?? "";
-    }
-    return; // wait for the response value + explicit save
-  }
-  void apply(item.domain, choice);
 }
 
 async function apply(domain: string, choice: Choice, response?: string): Promise<void> {
@@ -250,8 +215,6 @@ async function apply(domain: string, choice: Choice, response?: string): Promise
 watch(
   () => props.client,
   () => {
-    for (const k of Object.keys(choiceDrafts)) delete choiceDrafts[k];
-    for (const k of Object.keys(spoofDrafts)) delete spoofDrafts[k];
     void load();
   },
   { immediate: true }
@@ -350,40 +313,13 @@ watch(
       </template>
 
       <template #item.override="{ item }">
-        <div class="d-flex align-center ga-2 override-cell">
-          <v-select
-            :model-value="selectedChoice(item)"
-            :items="choiceItems"
-            density="compact"
-            variant="outlined"
-            hide-details
-            class="choice-select"
-            :disabled="isSaving(item.domain)"
-            @update:model-value="(v: Choice) => onChoice(item, v)"
-          />
-          <template v-if="selectedChoice(item) === 'spoof'">
-            <v-text-field
-              :model-value="spoofResponse(item)"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Response (IP / name)"
-              class="spoof-input"
-              :disabled="isSaving(item.domain)"
-              @update:model-value="(v: string) => (spoofDrafts[rowKey(item)] = v)"
-              @keyup.enter="apply(item.domain, 'spoof', spoofResponse(item))"
-            />
-            <v-btn
-              icon="mdi-check"
-              size="small"
-              variant="text"
-              color="success"
-              :loading="isSaving(item.domain)"
-              aria-label="Save spoof response"
-              @click="apply(item.domain, 'spoof', spoofResponse(item))"
-            />
-          </template>
-        </div>
+        <PolicyMenu
+          :choice="choiceFor(item.domain)"
+          :spoof-value="policyFor(item.domain)?.override_response ?? ''"
+          :saving="isSaving(item.domain)"
+          @select="(c) => apply(item.domain, c)"
+          @save-spoof="(v) => apply(item.domain, 'spoof', v)"
+        />
       </template>
 
       <template #item.last_seen="{ item }">
@@ -400,20 +336,6 @@ watch(
 
 .policy-search {
   max-width: 260px;
-}
-
-.choice-select {
-  min-width: 120px;
-  max-width: 140px;
-}
-
-.spoof-input {
-  min-width: 160px;
-  max-width: 220px;
-}
-
-.override-cell {
-  padding: 4px 0;
 }
 
 .new-chip {

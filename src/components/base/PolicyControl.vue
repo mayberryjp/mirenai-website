@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { usePoliciesStore } from "@/stores/policies";
 import { apiErrorMessage } from "@/services/errors";
+import PolicyMenu from "@/components/base/PolicyMenu.vue";
 import type { PolicyAction } from "@/types/domain";
 
 // Inline per-(client, domain) policy selector, matching the client detail
@@ -13,20 +14,10 @@ const props = defineProps<{
 
 type Choice = "inherit" | "allow" | "block" | "spoof";
 
-const choiceItems = [
-  { title: "Inherit", value: "inherit" },
-  { title: "Allow", value: "allow" },
-  { title: "Block", value: "block" },
-  { title: "Spoof", value: "spoof" }
-];
-
 const store = usePoliciesStore();
 
 const saving = ref(false);
 const error = ref<string | null>(null);
-// Local edit drafts; null means "read from the store's current policy".
-const choiceDraft = ref<Choice | null>(null);
-const spoofDraft = ref<string | null>(null);
 
 const existing = computed(() => store.policyFor(props.client, props.domain));
 
@@ -43,24 +34,7 @@ function choiceFromAction(action: PolicyAction | undefined): Choice {
   }
 }
 
-const selectedChoice = computed<Choice>(
-  () => choiceDraft.value ?? choiceFromAction(existing.value?.action)
-);
-
-const spoofResponse = computed<string>(
-  () => spoofDraft.value ?? existing.value?.override_response ?? ""
-);
-
-function onChoice(choice: Choice): void {
-  choiceDraft.value = choice;
-  if (choice === "spoof") {
-    if (spoofDraft.value === null) {
-      spoofDraft.value = existing.value?.override_response ?? "";
-    }
-    return; // wait for the response value + explicit save
-  }
-  void apply(choice);
-}
+const selectedChoice = computed<Choice>(() => choiceFromAction(existing.value?.action));
 
 async function apply(choice: Choice, response?: string): Promise<void> {
   if (saving.value) return;
@@ -82,9 +56,6 @@ async function apply(choice: Choice, response?: string): Promise<void> {
       if (current) await store.update(current.id, body);
       else await store.create(body);
     }
-    // Drafts cleared so the store becomes the source of truth again.
-    choiceDraft.value = null;
-    spoofDraft.value = null;
   } catch (e) {
     error.value = apiErrorMessage(e);
   } finally {
@@ -95,38 +66,13 @@ async function apply(choice: Choice, response?: string): Promise<void> {
 
 <template>
   <div class="d-flex align-center ga-2 policy-control">
-    <v-select
-      :model-value="selectedChoice"
-      :items="choiceItems"
-      density="compact"
-      variant="outlined"
-      hide-details
-      class="choice-select"
-      :disabled="saving"
-      @update:model-value="(v: Choice) => onChoice(v)"
+    <PolicyMenu
+      :choice="selectedChoice"
+      :spoof-value="existing?.override_response ?? ''"
+      :saving="saving"
+      @select="(c) => apply(c)"
+      @save-spoof="(v) => apply('spoof', v)"
     />
-    <template v-if="selectedChoice === 'spoof'">
-      <v-text-field
-        :model-value="spoofResponse"
-        density="compact"
-        variant="outlined"
-        hide-details
-        placeholder="Response (IP / name)"
-        class="spoof-input"
-        :disabled="saving"
-        @update:model-value="(v: string) => (spoofDraft = v)"
-        @keyup.enter="apply('spoof', spoofResponse)"
-      />
-      <v-btn
-        icon="mdi-check"
-        size="small"
-        variant="text"
-        color="success"
-        :loading="saving"
-        aria-label="Save spoof response"
-        @click="apply('spoof', spoofResponse)"
-      />
-    </template>
     <v-tooltip
       v-if="error"
       :text="error"
@@ -145,16 +91,6 @@ async function apply(choice: Choice, response?: string): Promise<void> {
 </template>
 
 <style scoped>
-.choice-select {
-  min-width: 120px;
-  max-width: 140px;
-}
-
-.spoof-input {
-  min-width: 160px;
-  max-width: 220px;
-}
-
 .policy-control {
   padding: 4px 0;
 }

@@ -86,7 +86,10 @@ onMounted(() => {
     <v-card-title class="d-flex flex-wrap align-center ga-2 px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 recent-domains-title">{{ title }}</span>
       <v-spacer />
-      <ActionFilter v-model="selectedActions" logged />
+      <ActionFilter
+        v-model="selectedActions"
+        logged
+      />
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"

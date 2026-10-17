@@ -60,6 +60,12 @@ See the mirenai frontend-integration spec for the full contract. Notes:
 
 - No auth; CORS is open.
 - Errors are mapped on the stable `code` field, not the human message.
+- Upstream dialogs support optional DNS over TLS (`use_tls`, default `false`) and
+  require `tls_server_name` when enabled for certificate and hostname verification.
+  TLS does not fall back to plain DNS. Toggling TLS switches the standard port
+  between 53 and 853, preserving custom ports; saves explicitly include the port
+  because `PUT /upstreams/{id}` otherwise preserves the existing one. The backend
+  must support these per-upstream TLS fields for encrypted forwarding and health checks.
 - Timestamps are container-local wall-clock (no timezone offset) — do not treat as UTC.
 - Blocklist domain lists can be huge and are always paginated.
 - `DELETE /queries` clears the whole log and is guarded behind a confirmation.

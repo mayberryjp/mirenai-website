@@ -41,6 +41,8 @@ export interface Upstream {
   address: string;
   port: number;
   protocol: UpstreamProtocol;
+  use_tls: boolean;
+  tls_server_name: string | null;
   enabled: boolean;
   priority: number;
   created_at: string;
@@ -50,8 +52,10 @@ export interface Upstream {
 export interface UpstreamCreate {
   address: string;
   name?: string | null;
-  port?: number; // default 53
+  port?: number; // default 853 with TLS, otherwise 53; preserved on update if omitted
   protocol?: UpstreamProtocol; // default "udp"
+  use_tls?: boolean; // default false
+  tls_server_name?: string | null; // required when use_tls is true
   enabled?: boolean; // default true
   priority?: number; // default 100
 }

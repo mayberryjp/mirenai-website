@@ -7,7 +7,7 @@ import { getUpstreamRttStats } from "@/services/stats";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
 import UpstreamRttChart from "@/components/dashboard/UpstreamRttChart.vue";
-import type { Upstream, UpstreamCreate, UpstreamRttStat } from "@/types/domain";
+import type { Upstream, UpstreamCreate, UpstreamProtocol, UpstreamRttStat } from "@/types/domain";
 
 const store = useUpstreamsStore();
 const { items, loading, error } = storeToRefs(store);
@@ -24,12 +24,18 @@ const headers = [
 interface UpstreamForm {
   address: string;
   port: number;
+  protocol: UpstreamProtocol;
+  use_tls: boolean;
+  tls_server_name: string;
   enabled: boolean;
   priority: number;
 }
 
 function emptyForm(): UpstreamForm {
-  return { address: "", port: 53, enabled: true, priority: 100 };
+  return {
+    address: "", port: 53, protocol: "udp", use_tls: false,
+    tls_server_name: "", enabled: true, priority: 100
+  };
 }
 
 const dialog = ref(false);
@@ -50,6 +56,9 @@ function openEdit(row: Upstream): void {
   Object.assign(form, {
     address: row.address,
     port: row.port,
+    protocol: row.protocol,
+    use_tls: row.use_tls ?? false,
+    tls_server_name: row.tls_server_name ?? "",
     enabled: row.enabled,
     priority: row.priority
   });
@@ -57,13 +66,26 @@ function openEdit(row: Upstream): void {
   dialog.value = true;
 }
 
+function updateTls(enabled: boolean | null): void {
+  form.use_tls = enabled === true;
+  if (form.port === (form.use_tls ? 53 : 853)) {
+    form.port = form.use_tls ? 853 : 53;
+  }
+}
+
 async function submit(): Promise<void> {
-  saving.value = true;
   formError.value = null;
+  if (form.use_tls && !form.tls_server_name.trim()) {
+    formError.value = "TLS server name is required when DNS over TLS is enabled.";
+    return;
+  }
+  saving.value = true;
   const body: UpstreamCreate = {
     address: form.address.trim(),
     port: form.port,
-    protocol: "udp",
+    protocol: form.protocol,
+    use_tls: form.use_tls,
+    tls_server_name: form.use_tls ? form.tls_server_name.trim() : null,
     enabled: form.enabled,
     priority: form.priority
   };
@@ -185,6 +207,18 @@ onMounted(() => {
           class="app-table"
           mobile-breakpoint="md"
         >
+          <template #item.address="{ item }">
+            {{ item.address }}
+            <v-chip
+              v-if="item.use_tls"
+              size="small"
+              color="primary"
+              variant="tonal"
+              class="ml-2"
+            >
+              TLS
+            </v-chip>
+          </template>
           <template #item.enabled="{ item }">
             <v-chip
               :color="item.enabled ? 'success' : 'error'"
@@ -271,6 +305,22 @@ onMounted(() => {
             v-model.number="form.port"
             type="number"
             label="Port"
+            :hint="form.use_tls ? 'DNS over TLS normally uses port 853.' : 'Plain DNS normally uses port 53.'"
+            persistent-hint
+          />
+          <v-switch
+            :model-value="form.use_tls"
+            label="DNS over TLS"
+            color="primary"
+            @update:model-value="updateTls"
+          />
+          <v-text-field
+            v-if="form.use_tls"
+            v-model="form.tls_server_name"
+            label="TLS server name (required)"
+            placeholder="cloudflare-dns.com"
+            hint="Certificate and hostname verification is required. TLS never falls back to plain DNS."
+            persistent-hint
           />
           <v-text-field
             v-model.number="form.priority"

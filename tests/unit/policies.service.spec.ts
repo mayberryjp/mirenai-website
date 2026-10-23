@@ -22,6 +22,15 @@ describe("policies service", () => {
     expect(page.items).toHaveLength(1);
   });
 
+  it("listPolicies filters spoof rules before pagination", async () => {
+    mocked.get.mockResolvedValue({ data: { status: "ok", policies: [], total: 31 } });
+    const page = await listPolicies(25, 25, "override");
+    expect(mocked.get).toHaveBeenCalledWith("/policies", {
+      params: { limit: 25, offset: 25, action: "override" }
+    });
+    expect(page).toEqual({ items: [], total: 31 });
+  });
+
   it("createPolicy returns the created resource", async () => {
     mocked.post.mockResolvedValue({ data: { status: "ok", policy: { id: 7 } } });
     const created = await createPolicy({ client: "*", domain: "example.com", action: "deny" });

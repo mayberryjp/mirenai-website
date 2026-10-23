@@ -8,9 +8,12 @@ const props = withDefaults(
     loading: boolean;
     error: string | null;
     title?: string;
+    result?: "blocked" | "overridden";
   }>(),
-  { title: "Blocklist Denied Traffic" }
+  { title: "Blocklist Denied Traffic", result: "blocked" }
 );
+
+const seriesLabel = computed(() => props.result === "overridden" ? "Spoofed" : "Blocklist Denied");
 
 // Oldest → newest, capped at the last 100 hourly buckets.
 const recent = computed(() =>
@@ -20,20 +23,19 @@ const hasData = computed(() => recent.value.length > 0);
 
 const categories = computed(() => recent.value.map((s) => formatHour(s.hour_start)));
 
-// Only the blocklist-denied count per hour (the `blocked` result bucket).
 const series = computed(() => [
-  { name: "Blocklist Denied", type: "line", data: recent.value.map((s) => s.blocked) }
+  { name: seriesLabel.value, type: "line", data: recent.value.map((s) => s[props.result]) }
 ]);
 
 const chartOptions = computed(() => ({
   chart: {
-    id: "blocklist-traffic-chart",
+    id: props.result === "overridden" ? "spoofed-traffic-chart" : "blocklist-traffic-chart",
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
-  colors: ["#ff5a36"],
+  colors: [props.result === "overridden" ? "#36c9a0" : "#ff5a36"],
   fill: { opacity: 1 },
   stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },
@@ -53,7 +55,10 @@ const chartOptions = computed(() => ({
     axisTicks: { color: "#333" }
   },
   yaxis: {
-    title: { text: "Blocklist denials / hour", style: { color: "#4a90d9" } },
+    title: {
+      text: props.result === "overridden" ? "Spoofed / hour" : "Blocklist denials / hour",
+      style: { color: "#4a90d9" }
+    },
     labels: {
       style: { colors: "#b1b8c0" },
       formatter: (val: number) => Math.round(val).toLocaleString()
@@ -78,10 +83,7 @@ const chartOptions = computed(() => ({
 }));
 
 function formatHour(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:00`;
+  return `${iso.slice(5, 7)}/${iso.slice(8, 10)} ${iso.slice(11, 13)}:00`;
 }
 </script>
 
@@ -136,7 +138,7 @@ function formatHour(iso: string): string {
         mdi-chart-line
       </v-icon>
       <div class="text-grey">
-        No blocklist activity in the last 100 hours.
+        No {{ result === "overridden" ? "spoofed" : "blocklist" }} activity in the last 100 hours.
       </div>
     </v-card-text>
 

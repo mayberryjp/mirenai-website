@@ -15,6 +15,7 @@ const tabs = [
   { value: "settings-blocklists", label: "Blocklists" },
   { value: "settings-blocklist-search", label: "Blocklist Search" },
   { value: "settings-blocklist-activity", label: "Blocklist Activity" },
+  { value: "settings-spoofed", label: "Spoofed" },
   { value: "settings-networking", label: "Networking" },
   { value: "settings-local-domains", label: "Local Domains" },
   { value: "settings-cache", label: "Cache" },

@@ -54,6 +54,11 @@ const privateRoutes: RouteRecordRaw[] = [
             component: () => import("@/components/settings/BlocklistActivityPanel.vue")
           },
           {
+            path: "spoofed",
+            name: "settings-spoofed",
+            component: () => import("@/components/settings/SpoofedPanel.vue")
+          },
+          {
             path: "networking",
             name: "settings-networking",
             component: () => import("@/components/settings/NetworkingPanel.vue")

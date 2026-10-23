@@ -3,6 +3,7 @@ import type { DeleteResult } from "@/types/api";
 import type {
   Page,
   Policy,
+  PolicyAction,
   PolicyCreate,
   PolicyList,
   PolicyResponse,
@@ -10,8 +11,13 @@ import type {
 } from "@/types/domain";
 
 // Omitting limit/offset returns all rows (axios drops undefined params). See spec §5.
-export async function listPolicies(limit?: number, offset?: number): Promise<Page<Policy>> {
-  const res = await api.get<PolicyList>("/policies", { params: { limit, offset } });
+export async function listPolicies(
+  limit?: number,
+  offset?: number,
+  action?: PolicyAction
+): Promise<Page<Policy>> {
+  const params = { limit, offset, ...(action ? { action } : {}) };
+  const res = await api.get<PolicyList>("/policies", { params });
   return { items: res.data.policies, total: res.data.total };
 }
 

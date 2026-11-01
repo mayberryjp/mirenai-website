@@ -104,7 +104,7 @@ async function loadHost(): Promise<void> {
     const host = await findHostByIp(client.value);
     hostId.value = host?.id ?? null;
     excludedFromBlocklist.value = host?.excluded_from_blocklist ?? null;
-    newDomainMonitoring.value = host?.flag_new_domains ?? null;
+    newDomainMonitoring.value = host?.new_domain_monitoring ?? host?.flag_new_domains ?? null;
   } catch (e) {
     blocklistError.value = apiErrorMessage(e);
   }
@@ -149,7 +149,7 @@ async function onMonitoringChange(next: boolean): Promise<void> {
   newDomainMonitoring.value = next; // optimistic
   try {
     const host = await setHostNewDomainMonitoring(hostId.value, next);
-    newDomainMonitoring.value = host.flag_new_domains;
+    newDomainMonitoring.value = host.new_domain_monitoring ?? host.flag_new_domains;
   } catch (e) {
     newDomainMonitoring.value = prev;
     monitoringError.value = apiErrorMessage(e);
@@ -315,7 +315,7 @@ watch(client, () => {
                 <!-- New-domain monitoring: Included = track this client's new domains, Excluded = ignore -->
                 <div class="policy-group">
                   <div class="policy-label text-caption text-medium-emphasis mb-1">
-                    New Domain Monitoring
+                    New-domain monitoring
                   </div>
                   <v-btn-toggle
                     :model-value="newDomainMonitoring"

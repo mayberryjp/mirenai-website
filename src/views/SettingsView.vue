@@ -11,10 +11,12 @@ const route = useRoute();
 
 const tabs = [
   { value: "settings-general", label: "General" },
+  { value: "settings-notifications", label: "Notifications" },
   { value: "settings-upstreams", label: "Upstreams" },
   { value: "settings-blocklists", label: "Blocklists" },
   { value: "settings-blocklist-search", label: "Blocklist Search" },
   { value: "settings-blocklist-activity", label: "Blocklist Activity" },
+  { value: "settings-policy-denied", label: "Policy Denied" },
   { value: "settings-spoofed", label: "Spoofed" },
   { value: "settings-networking", label: "Networking" },
   { value: "settings-local-domains", label: "Local Domains" },

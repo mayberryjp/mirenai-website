@@ -56,8 +56,15 @@ const filteredRows = computed<QueryLog[]>(() => {
 
 const policies = ref<Policy[]>([]);
 const loading = ref(true);
+const policiesLoaded = ref(false);
 const error = ref<string | null>(null);
 const savingDomains = ref(new Set<string>());
+const visibleRows = ref<QueryLog[]>([]);
+const allowingAll = ref(false);
+
+function updateVisibleRows(items: { raw: QueryLog }[]): void {
+  visibleRows.value = items.map((item) => item.raw);
+}
 
 // Exact-domain policies for this client (the "*" row is the client-level mode).
 const policyByDomain = computed(() => {
@@ -159,10 +166,12 @@ function isSaving(domain: string): boolean {
 
 async function load(): Promise<void> {
   loading.value = true;
+  policiesLoaded.value = false;
   error.value = null;
   try {
     const page = await listPolicies();
     policies.value = page.items;
+    policiesLoaded.value = true;
   } catch (e) {
     error.value = apiErrorMessage(e);
     policies.value = [];
@@ -178,37 +187,70 @@ function setSaving(domain: string, on: boolean): void {
   savingDomains.value = next;
 }
 
-async function apply(domain: string, choice: Choice, response?: string): Promise<void> {
-  if (isSaving(domain)) return;
-  setSaving(domain, true);
-  error.value = null;
+async function savePolicy(domain: string, choice: Choice, response?: string): Promise<void> {
+  const client = props.client;
   const existing = policyFor(domain);
-  try {
-    if (choice === "inherit") {
-      if (existing) {
-        await deletePolicy(existing.id);
+  if (choice === "inherit") {
+    if (existing) {
+      await deletePolicy(existing.id);
+      if (props.client === client) {
         policies.value = policies.value.filter((p) => p.id !== existing.id);
       }
-    } else {
-      const action: PolicyAction =
-        choice === "allow" ? "forward" : choice === "block" ? "deny" : "override";
-      const body = {
-        client: props.client,
-        domain,
-        action,
-        override_response: choice === "spoof" ? (response ?? "").trim() : null
-      };
-      const saved = existing
-        ? await updatePolicy(existing.id, body)
-        : await createPolicy(body);
+    }
+  } else {
+    const action: PolicyAction =
+      choice === "allow" ? "forward" : choice === "block" ? "deny" : "override";
+    const body = {
+      client,
+      domain,
+      action,
+      override_response: choice === "spoof" ? (response ?? "").trim() : null
+    };
+    const saved = existing
+      ? await updatePolicy(existing.id, body)
+      : await createPolicy(body);
+    if (props.client === client) {
       const idx = policies.value.findIndex((p) => p.id === saved.id);
       if (idx >= 0) policies.value.splice(idx, 1, saved);
       else policies.value.push(saved);
     }
+  }
+}
+
+async function apply(domain: string, choice: Choice, response?: string): Promise<void> {
+  if (loading.value || allowingAll.value || isSaving(domain)) return;
+  setSaving(domain, true);
+  error.value = null;
+  try {
+    await savePolicy(domain, choice, response);
   } catch (e) {
     error.value = apiErrorMessage(e);
   } finally {
     setSaving(domain, false);
+  }
+}
+
+async function allowAll(): Promise<void> {
+  if (!policiesLoaded.value || loading.value || allowingAll.value || savingDomains.value.size || !visibleRows.value.length) return;
+  const domains = [...new Set(visibleRows.value.map((row) => row.domain))];
+  const client = props.client;
+  const failures: string[] = [];
+  allowingAll.value = true;
+  error.value = null;
+  try {
+    for (const domain of domains) {
+      if (props.client !== client) break;
+      try {
+        await savePolicy(domain, "allow");
+      } catch (e) {
+        failures.push(`${domain}: ${apiErrorMessage(e)}`);
+      }
+    }
+    if (props.client === client && failures.length) {
+      error.value = `Could not allow ${failures.length} domain(s). ${failures.join("; ")}`;
+    }
+  } finally {
+    allowingAll.value = false;
   }
 }
 
@@ -240,6 +282,17 @@ watch(
         clearable
         class="policy-search"
       />
+      <v-btn
+        height="40"
+        variant="outlined"
+        color="success"
+        class="text-none"
+        :loading="allowingAll"
+        :disabled="!policiesLoaded || loading || allowingAll || savingDomains.size > 0 || !visibleRows.length"
+        @click="allowAll"
+      >
+        Allow All
+      </v-btn>
     </v-card-title>
     <v-divider />
 
@@ -263,6 +316,7 @@ watch(
       class="app-table"
       mobile-breakpoint="md"
       :items-per-page="25"
+      @update:current-items="updateVisibleRows"
     >
       <template #item.domain="{ item }">
         <div class="d-flex align-center ga-2">
@@ -316,7 +370,7 @@ watch(
         <PolicyMenu
           :choice="choiceFor(item.domain)"
           :spoof-value="policyFor(item.domain)?.override_response ?? ''"
-          :saving="isSaving(item.domain)"
+          :saving="loading || allowingAll || isSaving(item.domain)"
           @select="(c) => apply(item.domain, c)"
           @save-spoof="(v) => apply(item.domain, 'spoof', v)"
         />

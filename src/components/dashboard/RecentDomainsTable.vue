@@ -14,7 +14,7 @@ const props = withDefaults(
     error: string | null;
     title?: string;
   }>(),
-  { title: "Recent Domains" }
+  { title: "Newly Seen Domains" }
 );
 
 const clients = useClientsStore();
@@ -126,7 +126,26 @@ onMounted(() => {
       no-data-text="No domains recorded yet."
     >
       <template #item.client="{ item }">
-        {{ clients.nameFor(item.client) }}
+        <span class="text-no-wrap">{{ clients.nameFor(item.client) }}</span>
+      </template>
+
+      <template #item.domain="{ item }">
+        <v-tooltip
+          v-if="item.domain.length > 25"
+          :text="item.domain"
+          location="top"
+        >
+          <template #activator="{ props: tip }">
+            <span
+              v-bind="tip"
+              class="text-no-wrap"
+            >{{ item.domain.slice(0, 25) }}...</span>
+          </template>
+        </v-tooltip>
+        <span
+          v-else
+          class="text-no-wrap"
+        >{{ item.domain }}</span>
       </template>
 
       <template #item.blocked="{ item }">
@@ -161,7 +180,7 @@ onMounted(() => {
       </template>
 
       <template #item.first_seen="{ item }">
-        <span class="date-column">{{ formatDateTime(item.first_seen) }}</span>
+        <span class="date-column text-no-wrap">{{ formatDateTime(item.first_seen) }}</span>
       </template>
     </v-data-table>
   </v-sheet>

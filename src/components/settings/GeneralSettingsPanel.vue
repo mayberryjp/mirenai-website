@@ -4,7 +4,7 @@ import { storeToRefs } from "pinia";
 import { useSettingsStore } from "@/stores/settings";
 import { apiErrorMessage } from "@/services/errors";
 import AsyncState from "@/components/base/AsyncState.vue";
-import type { Settings } from "@/types/domain";
+import type { Settings, SettingsUpdate } from "@/types/domain";
 
 const store = useSettingsStore();
 const { settings, loading, saving, error } = storeToRefs(store);
@@ -29,7 +29,11 @@ async function save(): Promise<void> {
   saveError.value = null;
   saved.value = false;
   try {
-    await store.save({ ...form.value });
+    const body: SettingsUpdate = { ...form.value };
+    delete body.discord_notifications_enabled;
+    delete body.discord_webhook_url;
+    delete body.discord_query_types;
+    await store.save(body);
     saved.value = true;
   } catch (e) {
     saveError.value = apiErrorMessage(e);

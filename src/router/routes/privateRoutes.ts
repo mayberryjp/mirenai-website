@@ -34,6 +34,11 @@ const privateRoutes: RouteRecordRaw[] = [
             component: () => import("@/components/settings/GeneralSettingsPanel.vue")
           },
           {
+            path: "notifications",
+            name: "settings-notifications",
+            component: () => import("@/components/settings/NotificationsPanel.vue")
+          },
+          {
             path: "upstreams",
             name: "settings-upstreams",
             component: () => import("@/components/settings/UpstreamsPanel.vue")
@@ -52,6 +57,11 @@ const privateRoutes: RouteRecordRaw[] = [
             path: "blocklist-activity",
             name: "settings-blocklist-activity",
             component: () => import("@/components/settings/BlocklistActivityPanel.vue")
+          },
+          {
+            path: "policy-denied",
+            name: "settings-policy-denied",
+            component: () => import("@/components/settings/PolicyDeniedPanel.vue")
           },
           {
             path: "spoofed",

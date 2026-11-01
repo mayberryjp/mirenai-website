@@ -169,6 +169,20 @@ export interface TopBlockedDomain {
   blocklists: TopBlockedMatch[]; // blocklists whose rules matched the domain
 }
 
+export interface TopPolicyDeniedClient {
+  client: string;
+  count: number;
+}
+
+// GET /queries/top-denied: domains ranked by historical policy denials across query types.
+export interface TopPolicyDeniedDomain {
+  domain: string;
+  count: number;
+  clients: TopPolicyDeniedClient[];
+  first_seen: string;
+  last_seen: string;
+}
+
 // ---- Clients ----
 // The client roster is the device inventory from /hosts (one entry per host) —
 // see services/clients.ts.
@@ -202,6 +216,7 @@ export interface Host {
   icon: string | null; // icon key (e.g. "TV"); null until set
   excluded_from_blocklist: boolean; // writable via PUT /hosts/{id}; true = bypass the blocklist
   flag_new_domains: boolean; // writable; true = include this client's new domains in monitoring
+  new_domain_monitoring: boolean; // writable; shared flag for the newly-seen feed and Discord alerts
   query_count: number; // read-only
   "500h_queries": number; // read-only; queries seen in the last 500 hours
   first_seen: string; // read-only
@@ -301,6 +316,9 @@ export interface Settings {
   query_flush_seconds: number;
   log_queries: boolean;
   drop_private_ptr: boolean;
+  discord_notifications_enabled: boolean;
+  discord_webhook_url: string;
+  discord_query_types: Record<string, boolean>;
 }
 export type SettingsUpdate = Partial<Settings>;
 
@@ -412,6 +430,8 @@ export type DomainList = OkEnvelope & { domains: string[]; total: number };
 export type QueryList = OkEnvelope & { queries: QueryLog[]; total: number };
 
 export type TopBlockedList = OkEnvelope & { domains: TopBlockedDomain[]; total: number };
+
+export type TopPolicyDeniedList = OkEnvelope & { domains: TopPolicyDeniedDomain[]; total: number };
 
 export type SettingsResponse = OkEnvelope & { settings: Settings };
 

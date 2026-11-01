@@ -8,7 +8,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     include: ["tests/unit/**/*.spec.ts", "tests/component/**/*.spec.ts"],
-    setupFiles: ["./tests/unit/setup.ts"]
+    setupFiles: ["./tests/unit/setup.ts"],
+    server: { deps: { inline: ["vuetify"] } }
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") }

@@ -24,9 +24,9 @@ export async function setHostBlocklistExclusion(id: number, excluded: boolean): 
   return res.data.host;
 }
 
-// flag_new_domains: true keeps this client's newly-seen domains in monitoring; false opts out.
+// Shared opt-in for the newly-seen feed and globally enabled Discord alerts.
 export async function setHostNewDomainMonitoring(id: number, enabled: boolean): Promise<Host> {
-  const res = await api.put<HostResponse>(`/hosts/${id}`, { flag_new_domains: enabled });
+  const res = await api.put<HostResponse>(`/hosts/${id}`, { new_domain_monitoring: enabled });
   return res.data.host;
 }
 

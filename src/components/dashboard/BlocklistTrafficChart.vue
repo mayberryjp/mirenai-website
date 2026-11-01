@@ -8,12 +8,25 @@ const props = withDefaults(
     loading: boolean;
     error: string | null;
     title?: string;
-    result?: "blocked" | "overridden";
+    result?: "blocked" | "overridden" | "denied";
   }>(),
   { title: "Blocklist Denied Traffic", result: "blocked" }
 );
 
-const seriesLabel = computed(() => props.result === "overridden" ? "Spoofed" : "Blocklist Denied");
+const resultOptions = computed(() => ({
+  blocked: {
+    label: "Blocklist Denied", id: "blocklist-traffic-chart", color: "#ff5a36",
+    axis: "Blocklist denials / hour", activity: "blocklist"
+  },
+  overridden: {
+    label: "Spoofed", id: "spoofed-traffic-chart", color: "#36c9a0",
+    axis: "Spoofed / hour", activity: "spoofed"
+  },
+  denied: {
+    label: "Policy Denied", id: "policy-denied-traffic-chart", color: "#f5822a",
+    axis: "Policy denials / hour", activity: "policy-denied"
+  }
+})[props.result]);
 
 // Oldest → newest, capped at the last 100 hourly buckets.
 const recent = computed(() =>
@@ -24,18 +37,18 @@ const hasData = computed(() => recent.value.length > 0);
 const categories = computed(() => recent.value.map((s) => formatHour(s.hour_start)));
 
 const series = computed(() => [
-  { name: seriesLabel.value, type: "line", data: recent.value.map((s) => s[props.result]) }
+  { name: resultOptions.value.label, type: "line", data: recent.value.map((s) => s[props.result]) }
 ]);
 
 const chartOptions = computed(() => ({
   chart: {
-    id: props.result === "overridden" ? "spoofed-traffic-chart" : "blocklist-traffic-chart",
+    id: resultOptions.value.id,
     background: "#0d1117",
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false }
   },
-  colors: [props.result === "overridden" ? "#36c9a0" : "#ff5a36"],
+  colors: [resultOptions.value.color],
   fill: { opacity: 1 },
   stroke: { curve: "smooth", width: 2 },
   dataLabels: { enabled: false },
@@ -56,7 +69,7 @@ const chartOptions = computed(() => ({
   },
   yaxis: {
     title: {
-      text: props.result === "overridden" ? "Spoofed / hour" : "Blocklist denials / hour",
+      text: resultOptions.value.axis,
       style: { color: "#4a90d9" }
     },
     labels: {
@@ -138,7 +151,7 @@ function formatHour(iso: string): string {
         mdi-chart-line
       </v-icon>
       <div class="text-grey">
-        No {{ result === "overridden" ? "spoofed" : "blocklist" }} activity in the last 100 hours.
+        No {{ resultOptions.activity }} activity in the last 100 hours.
       </div>
     </v-card-text>
 

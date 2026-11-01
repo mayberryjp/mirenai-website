@@ -1,6 +1,9 @@
 import api from "@/services/api";
 import type { DeleteResult } from "@/types/api";
-import type { Page, QueryList, QueryLog, TopBlockedDomain, TopBlockedList } from "@/types/domain";
+import type {
+  Page, QueryList, QueryLog, TopBlockedDomain, TopBlockedList,
+  TopPolicyDeniedDomain, TopPolicyDeniedList
+} from "@/types/domain";
 
 export async function listQueries(
   limit?: number,
@@ -21,6 +24,17 @@ export async function listTopBlocked(
 ): Promise<Page<TopBlockedDomain>> {
   const res = await api.get<TopBlockedList>("/queries/top-blocked", {
     params: { limit, offset }
+  });
+  return { items: res.data.domains, total: res.data.total };
+}
+
+// Historical policy denies ranked per domain; optional client filter applies before ranking.
+export async function listTopPolicyDenied(
+  limit?: number,
+  client?: string
+): Promise<Page<TopPolicyDeniedDomain>> {
+  const res = await api.get<TopPolicyDeniedList>("/queries/top-denied", {
+    params: { limit, client }
   });
   return { items: res.data.domains, total: res.data.total };
 }

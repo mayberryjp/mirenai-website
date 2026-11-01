@@ -8,6 +8,10 @@ SET SANDO_API_URL=http://10.2.10.2:8044
 npm run dev
 
 
+set VITE_API_BASE_URL=http://mirenai.codex.mayberry.farm:11000
+SET SANDO_API_URL=http://sando.codex.mayberry.farm:8044
+npm run dev
+
 
 3. Client requests — /requests (read-only)
 Per-client request objects (query names) with hit counts, one row per (client, domain, qtype). Written hourly. Ordered by hits desc, then id — so the top ("principal") objects come first.

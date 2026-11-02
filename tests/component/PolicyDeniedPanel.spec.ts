@@ -64,15 +64,15 @@ beforeEach(() => {
 });
 
 describe("policy denied settings", () => {
-  it("loads ranked domains, shows nested client counts and denial dates, and targets every exact pair", async () => {
+  it("loads ranked domains, shows only the total count and denial dates, and targets every exact pair", async () => {
     const wrapper = await render();
     expect(listTopPolicyDenied).toHaveBeenCalledWith(100);
     expect(getSiteStats).toHaveBeenCalledWith(100);
     expect(stores.policies.load).toHaveBeenCalledOnce();
     expect(wrapper.text()).toContain("Device 192.168.1.10");
     expect(wrapper.text()).toContain("Device 192.168.1.11");
-    expect(wrapper.text()).toContain("(2,000)");
-    expect(wrapper.text()).toContain("(345)");
+    expect(wrapper.text()).not.toContain("(2,000)");
+    expect(wrapper.text()).not.toContain("(345)");
     expect(wrapper.text()).toContain("2,345");
     expect(wrapper.text()).toContain("11/01 02:15");
     expect(wrapper.text()).toContain("11/01 10:30");

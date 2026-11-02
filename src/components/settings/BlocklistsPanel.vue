@@ -280,7 +280,7 @@ onMounted(() => {
             <span class="font-weight-medium">{{ item.domain_count.toLocaleString() }}</span>
           </template>
           <template #item.last_downloaded_at="{ item }">
-            <span class="date-column">{{ formatUpdated(item.last_downloaded_at) }}</span>
+            <span class="date-column text-no-wrap">{{ formatUpdated(item.last_downloaded_at) }}</span>
           </template>
           <template #item.last_status="{ item }">
             <v-chip

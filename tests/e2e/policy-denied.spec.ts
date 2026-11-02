@@ -68,11 +68,29 @@ test("policy denied route shows hourly traffic, locally pages ranked domains, an
   const first = page.getByRole("row").filter({ hasText: "denied-0.example.com" });
   await expect(first).toContainText("Living Room");
   await expect(first).toContainText("Bedroom");
-  await expect(first).toContainText("(60)");
-  await expect(first).toContainText("(40)");
+  await expect(first).not.toContainText("(60)");
+  await expect(first).not.toContainText("(40)");
+  await expect(first.getByRole("cell", { name: "100", exact: true })).toBeVisible();
   await expect(first).toContainText("11/01 02:15");
   await expect(first).toContainText("11/01 10:30");
   await expect(first).toContainText("Policy Denied");
+
+  const clientLink = first.getByRole("link", { name: "Living Room", exact: true });
+  await expect(clientLink).toHaveAttribute("href", "/clients/192.168.1.10");
+  const surroundingStyle = await clientLink.evaluate((link) => {
+    if (!link.parentElement) throw new Error("Client link has no parent");
+    const style = getComputedStyle(link.parentElement);
+    return { color: style.color, font: style.font };
+  });
+  await expect(clientLink).toHaveCSS("color", surroundingStyle.color);
+  await expect(clientLink).toHaveCSS("font", surroundingStyle.font);
+  await expect(clientLink).toHaveCSS("text-decoration-line", "none");
+  await clientLink.hover();
+  await expect(clientLink).toHaveCSS("color", surroundingStyle.color);
+  await expect(clientLink).toHaveCSS("text-decoration-line", "none");
+  await clientLink.focus();
+  await expect(clientLink).toHaveCSS("color", surroundingStyle.color);
+  await expect(clientLink).toHaveCSS("text-decoration-line", "none");
 
   const editor = first.locator(".policy-control").first();
   await expect(first.locator(".policy-control")).toHaveCount(2);

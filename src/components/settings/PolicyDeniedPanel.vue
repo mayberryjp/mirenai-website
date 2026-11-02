@@ -159,10 +159,10 @@ onMounted(refresh);
             <router-link
               :to="{ name: 'client', params: { client: client.client } }"
               :title="client.client"
+              class="client-link"
             >
               {{ clients.nameFor(client.client) }}
             </router-link>
-            ({{ client.count.toLocaleString() }})
           </div>
         </template>
         <template #item.count="{ item }">
@@ -217,5 +217,11 @@ onMounted(refresh);
 <style scoped>
 .table-title {
   color: #b1b8c0;
+}
+
+.client-link {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
 }
 </style>

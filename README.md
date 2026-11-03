@@ -77,6 +77,10 @@ See the mirenai frontend-integration spec for the full contract. Notes:
   Client **New-domain monitoring** uses `PUT /hosts/{id}` with
   `new_domain_monitoring` and controls both the newly-seen feed and alerts.
   Historical and disabled-period discoveries are not replayed on enable.
+  The client sidebar shows unmonitored devices with muted grey icons and places
+  them last in **New domains** order, regardless of historical counts. **Client
+  queries** ordering and displayed counts are unchanged. The sidebar uses
+  `new_domain_monitoring`, falling back to `flag_new_domains` on older backends.
 - Upstream dialogs support optional DNS over TLS (`use_tls`, default `false`) and
   require `tls_server_name` when enabled for certificate and hostname verification.
   TLS does not fall back to plain DNS. Toggling TLS switches the standard port

@@ -105,6 +105,9 @@ async function loadHost(): Promise<void> {
     hostId.value = host?.id ?? null;
     excludedFromBlocklist.value = host?.excluded_from_blocklist ?? null;
     newDomainMonitoring.value = host?.new_domain_monitoring ?? host?.flag_new_domains ?? null;
+    if (host && newDomainMonitoring.value !== null) {
+      store.hostNewDomainMonitoring[host.ip] = newDomainMonitoring.value;
+    }
   } catch (e) {
     blocklistError.value = apiErrorMessage(e);
   }
@@ -150,6 +153,7 @@ async function onMonitoringChange(next: boolean): Promise<void> {
   try {
     const host = await setHostNewDomainMonitoring(hostId.value, next);
     newDomainMonitoring.value = host.new_domain_monitoring ?? host.flag_new_domains;
+    store.hostNewDomainMonitoring[host.ip] = newDomainMonitoring.value;
   } catch (e) {
     newDomainMonitoring.value = prev;
     monitoringError.value = apiErrorMessage(e);

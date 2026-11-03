@@ -38,7 +38,7 @@ function newDomainCount(client: string): number {
 }
 
 // Filtered roster ordered by the active sort toggle: new-domain volume by
-// default, or 500h query count. Each metric tie-breaks on the other.
+// default (unmonitored clients last), or 500h query count. Each metric tie-breaks on the other.
 const sortedClients = computed(() => {
   const list = [...filteredClients.value];
   if (sortMode.value === "queries") {
@@ -50,6 +50,7 @@ const sortedClients = computed(() => {
   }
   return list.sort(
     (a, b) =>
+      Number(store.monitorsNewDomainsFor(b.client)) - Number(store.monitorsNewDomainsFor(a.client)) ||
       newDomainCount(b.client) - newDomainCount(a.client) ||
       b.queries_500h - a.queries_500h
   );
@@ -81,6 +82,7 @@ function formatCount(n: number): string {
 // Colour the device icon by recent new-domain volume (sum of the alert bars):
 // calm green when quiet, escalating to crimson as new domains pile up.
 function iconColor(client: string): string {
+  if (!store.monitorsNewDomainsFor(client)) return "#6e7681";
   const total = newDomainCount(client);
   if (total === 0) return "#2EC4A0";
   if (total <= 9) return "#FFD600";

@@ -88,6 +88,8 @@ See the mirenai frontend-integration spec for the full contract. Notes:
   because `PUT /upstreams/{id}` otherwise preserves the existing one. The backend
   must support these per-upstream TLS fields for encrypted forwarding and health checks.
 - Timestamps are container-local wall-clock (no timezone offset) — do not treat as UTC.
+- **Newly Seen Domains** and the client-specific domain table show a green **NEW**
+  chip for domains first seen less than 24 hours ago.
 - Blocklist domain lists can be huge and are always paginated.
 - **Settings > Policy Denied** (`/settings/policy-denied`), between Blocklist
   Activity and Spoofed, shows an Apex line chart of the latest 100 hourly `denied`

@@ -10,6 +10,7 @@ import { apiErrorMessage } from "@/services/errors";
 import ActionFilter from "@/components/base/ActionFilter.vue";
 import PolicyMenu from "@/components/base/PolicyMenu.vue";
 import { ACTION_COLORS } from "@/constants/actions";
+import { isNewDomain } from "@/utils/domains";
 import type { ClientMode, LoggedAction, Policy, PolicyAction, QueryLog } from "@/types/domain";
 
 const props = defineProps<{
@@ -49,7 +50,7 @@ const filteredRows = computed<QueryLog[]>(() => {
     return r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q);
   });
   return rows.sort((a, b) => {
-    const newDelta = Number(isNew(b.first_seen)) - Number(isNew(a.first_seen));
+    const newDelta = Number(isNewDomain(b.first_seen)) - Number(isNewDomain(a.first_seen));
     return newDelta !== 0 ? newDelta : b.count - a.count;
   });
 });
@@ -119,15 +120,6 @@ function blockedLabel(on: boolean | undefined | null): string {
 
 function blockedColor(on: boolean | undefined | null): string {
   return on ? "burgundy" : "grey";
-}
-
-// Flag domains first seen within the last 24h. first_seen is container-local
-// wall-clock (no offset); new Date parses it in the same local frame as now.
-const DAY_MS = 24 * 60 * 60 * 1000;
-function isNew(firstSeen: string): boolean {
-  const d = new Date(firstSeen);
-  if (Number.isNaN(d.getTime())) return false;
-  return Date.now() - d.getTime() < DAY_MS;
 }
 
 function effectiveLabel(domain: string): string {
@@ -322,7 +314,7 @@ watch(
         <div class="d-flex align-center ga-2">
           <span>{{ item.domain }}</span>
           <v-chip
-            v-if="isNew(item.first_seen)"
+            v-if="isNewDomain(item.first_seen)"
             size="x-small"
             variant="flat"
             color="success"

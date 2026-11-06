@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import RecentDomainsTable from "@/components/dashboard/RecentDomainsTable.vue";
 import type { RecentNewDomain } from "@/types/domain";
@@ -12,11 +12,11 @@ vi.mock("@/stores/policies", () => ({
 
 const slotStub = { template: "<div><slot /></div>" };
 
-function render(domains: string[], title?: string) {
-  const rows: RecentNewDomain[] = domains.map((domain) => ({
+function render(domains: string[], title?: string, firstSeen: string[] = []) {
+  const rows: RecentNewDomain[] = domains.map((domain, index) => ({
     client: "192.168.1.10",
     domain,
-    first_seen: "2026-11-01T10:17:58",
+    first_seen: firstSeen[index] ?? "2026-11-01T10:17:58",
     last_action: "forward",
     last_qtype: "A"
   }));
@@ -52,7 +52,39 @@ function render(domains: string[], title?: string) {
   });
 }
 
+beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-07T12:00:00").getTime());
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("newly seen domains table", () => {
+  it("matches the host NEW chip only for domains first seen less than 24 hours ago", () => {
+    const wrapper = render(
+      ["recent.example", "boundary.example", "older.example", "invalid.example", `${"b".repeat(26)}.com`],
+      undefined,
+      [
+        "2026-11-06T12:00:00.001",
+        "2026-11-06T12:00:00",
+        "2026-11-06T11:59:59.999",
+        "invalid",
+        "2026-11-07T11:00:00"
+      ]
+    );
+    const cells = wrapper.findAll(".domain");
+    expect(cells.map((cell) => cell.find(".new-chip").exists())).toEqual([
+      true, false, false, false, true
+    ]);
+    const chip = cells[0].get(".new-chip");
+    expect(chip.text()).toBe("NEW");
+    expect(chip.attributes()).toMatchObject({
+      size: "x-small", variant: "flat", color: "success"
+    });
+    expect(cells[4].get("span").text()).toBe(`${"b".repeat(25)}...`);
+  });
+
   it("uses the new default title and preserves custom titles", () => {
     expect(render([]).text()).toContain("Newly Seen Domains");
     expect(render([], "Custom domains").text()).toContain("Custom domains");

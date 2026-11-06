@@ -5,6 +5,7 @@ import { usePoliciesStore } from "@/stores/policies";
 import PolicyControl from "@/components/base/PolicyControl.vue";
 import ActionFilter from "@/components/base/ActionFilter.vue";
 import { loggedActionColor, loggedActionLabel } from "@/constants/actions";
+import { isNewDomain } from "@/utils/domains";
 import type { LoggedAction, RecentNewDomain } from "@/types/domain";
 
 const props = withDefaults(
@@ -130,22 +131,33 @@ onMounted(() => {
       </template>
 
       <template #item.domain="{ item }">
-        <v-tooltip
-          v-if="item.domain.length > 25"
-          :text="item.domain"
-          location="top"
-        >
-          <template #activator="{ props: tip }">
-            <span
-              v-bind="tip"
-              class="text-no-wrap"
-            >{{ item.domain.slice(0, 25) }}...</span>
-          </template>
-        </v-tooltip>
-        <span
-          v-else
-          class="text-no-wrap"
-        >{{ item.domain }}</span>
+        <div class="d-flex align-center ga-2">
+          <v-tooltip
+            v-if="item.domain.length > 25"
+            :text="item.domain"
+            location="top"
+          >
+            <template #activator="{ props: tip }">
+              <span
+                v-bind="tip"
+                class="text-no-wrap"
+              >{{ item.domain.slice(0, 25) }}...</span>
+            </template>
+          </v-tooltip>
+          <span
+            v-else
+            class="text-no-wrap"
+          >{{ item.domain }}</span>
+          <v-chip
+            v-if="isNewDomain(item.first_seen)"
+            size="x-small"
+            variant="flat"
+            color="success"
+            class="new-chip"
+          >
+            NEW
+          </v-chip>
+        </div>
       </template>
 
       <template #item.blocked="{ item }">
@@ -198,5 +210,10 @@ onMounted(() => {
 
 .recent-search {
   max-width: 260px;
+}
+
+.new-chip {
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 </style>

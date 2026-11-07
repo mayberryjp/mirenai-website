@@ -90,6 +90,11 @@ See the mirenai frontend-integration spec for the full contract. Notes:
 - Timestamps are container-local wall-clock (no timezone offset) — do not treat as UTC.
 - **Newly Seen Domains** and the client-specific domain table show a green **NEW**
   chip for domains first seen less than 24 hours ago.
+  The client table uses `/queries`' retained `domain_first_seen` for badges and
+  new-first sorting, shared across A/AAAA and preserved after query-log resets.
+  Query-log `first_seen`, counts, and last-seen timestamps remain unchanged.
+  Deploy the backend supporting `domain_first_seen` before this frontend; missing
+  or invalid retained timestamps never fall back to query-log `first_seen`.
 - Blocklist domain lists can be huge and are always paginated.
 - **Settings > Policy Denied** (`/settings/policy-denied`), between Blocklist
   Activity and Spoofed, shows an Apex line chart of the latest 100 hourly `denied`

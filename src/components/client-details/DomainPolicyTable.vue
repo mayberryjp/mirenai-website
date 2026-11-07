@@ -36,7 +36,7 @@ const selectedActions = ref<LoggedAction[]>([]);
 
 // Client-side filter over this client's query rows: match the search text (domain
 // or query type) AND, when any action chips are selected, the effective policy
-// action shown in the Policy column. New domains (first seen < 24h) float to the
+// action shown in the Policy column. New domains (retained first seen < 24h) float to the
 // top, then highest hit count first within each group.
 const filteredRows = computed<QueryLog[]>(() => {
   const q = search.value.trim().toLowerCase();
@@ -50,7 +50,7 @@ const filteredRows = computed<QueryLog[]>(() => {
     return r.domain.toLowerCase().includes(q) || r.qtype.toLowerCase().includes(q);
   });
   return rows.sort((a, b) => {
-    const newDelta = Number(isNewDomain(b.first_seen)) - Number(isNewDomain(a.first_seen));
+    const newDelta = Number(isNewDomain(b.domain_first_seen)) - Number(isNewDomain(a.domain_first_seen));
     return newDelta !== 0 ? newDelta : b.count - a.count;
   });
 });
@@ -314,7 +314,7 @@ watch(
         <div class="d-flex align-center ga-2">
           <span>{{ item.domain }}</span>
           <v-chip
-            v-if="isNewDomain(item.first_seen)"
+            v-if="isNewDomain(item.domain_first_seen)"
             size="x-small"
             variant="flat"
             color="success"

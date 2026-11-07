@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createVuetify } from "vuetify";
 import { VDataTable } from "vuetify/components/VDataTable";
@@ -21,7 +21,8 @@ const slotStub = { template: "<div><slot /></div>" };
 function row(id: number, domain = `domain-${id}.example`, qtype = "A"): QueryLog {
   return {
     id, client, domain, qtype, count: id, last_action: "deny",
-    first_seen: "2020-01-01T00:00:00", last_seen: "2020-01-01T00:00:00"
+    first_seen: "2020-01-01T00:00:00", domain_first_seen: "2020-01-01T00:00:00",
+    last_seen: "2020-01-01T00:00:00"
   };
 }
 
@@ -76,6 +77,57 @@ beforeEach(() => {
   vi.mocked(createPolicy).mockImplementation(async (body) => policy(100 + Number(body.domain.match(/\d+/)?.[0] ?? 0), body));
   vi.mocked(updatePolicy).mockImplementation(async (id, body) =>
     policy(id, { client, domain: "existing.example", action: "forward", ...body }));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("DomainPolicyTable retained NEW badges", () => {
+  beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-07T17:00:00").getTime());
+  });
+
+  it("does not label old domains NEW after query-log resets, for either A or AAAA", async () => {
+    const rows = [
+      { ...row(1, "lscr.io"), domain_first_seen: "2026-10-09T10:00:00" },
+      { ...row(2, "lscr.io", "AAAA"), domain_first_seen: "2026-10-09T10:00:00" },
+      { ...row(3, "api.github.com"), domain_first_seen: "2026-09-28T10:00:00" },
+      { ...row(4, "api.github.com", "AAAA"), domain_first_seen: "2026-09-28T10:00:00" }
+    ].map((item) => ({ ...item, first_seen: "2026-11-07T16:00:00" }));
+    const wrapper = await render(rows);
+    expect(wrapper.findAll("tbody tr")).toHaveLength(4);
+    expect(wrapper.findAll(".new-chip")).toHaveLength(0);
+  });
+
+  it("uses the retained 24-hour boundary and shares NEW status across query types", async () => {
+    const wrapper = await render([
+      { ...row(1, "recent.example"), domain_first_seen: "2026-11-06T17:00:00.001" },
+      { ...row(2, "recent.example", "AAAA"), domain_first_seen: "2026-11-06T17:00:00.001" },
+      { ...row(3, "boundary.example"), domain_first_seen: "2026-11-06T17:00:00" },
+      { ...row(4, "older.example"), domain_first_seen: "2026-11-06T16:59:59.999" },
+      { ...row(5, "invalid.example"), domain_first_seen: "invalid", first_seen: "2026-11-07T16:00:00" }
+    ]);
+    const tableRows = wrapper.findAll("tbody tr");
+    expect(tableRows.map((item) => item.find(".new-chip").exists())).toEqual([
+      true, true, false, false, false
+    ]);
+    expect(wrapper.findAll(".new-chip").every((chip) => chip.text() === "NEW")).toBe(true);
+  });
+
+  it("sorts genuinely new domains first, then by count without changing query data", async () => {
+    const rows = [
+      { ...row(100, "old.example"), first_seen: "2026-11-07T16:00:00" },
+      { ...row(1, "recent-low.example"), domain_first_seen: "2026-11-07T15:00:00" },
+      { ...row(2, "recent-high.example"), domain_first_seen: "2026-11-07T15:00:00" }
+    ];
+    const wrapper = await render(rows);
+    expect(wrapper.findAll("tbody tr").map((item) => item.get("td:first-child span").text())).toEqual([
+      "recent-high.example", "recent-low.example", "old.example"
+    ]);
+    expect(rows.map((item) => item.count)).toEqual([100, 1, 2]);
+    expect(rows[0].first_seen).toBe("2026-11-07T16:00:00");
+  });
 });
 
 describe("DomainPolicyTable Allow All", () => {

@@ -143,6 +143,7 @@ export interface QueryLog {
   last_action: LoggedAction | null;
   blocked?: boolean; // true = domain is on a blocklist
   first_seen: string;
+  domain_first_seen: string; // Retained per-client/domain history, shared across query types.
   last_seen: string;
 }
 

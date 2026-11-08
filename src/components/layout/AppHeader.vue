@@ -10,7 +10,7 @@ const route = useRoute();
 const { lgAndUp } = useDisplay();
 const ui = useUiStore();
 
-// Fall back to an icon until the logo image (public/logo.png) is present.
+// Fall back to an icon if the logo image cannot load.
 const logoError = ref(false);
 </script>
 
@@ -26,7 +26,7 @@ const logoError = ref(false);
     >
       <img
         v-if="!logoError"
-        src="/logo.png"
+        src="/logo-transparent.png"
         alt="Mirenai"
         width="36"
         height="36"
